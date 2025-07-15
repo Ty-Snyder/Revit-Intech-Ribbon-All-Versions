@@ -1,0 +1,188 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	 
+	<PropertyGroup>
+		    <TargetFrameworks>net48;net8.0-windows</TargetFrameworks>
+		    <OutputType>Library</OutputType>
+		    <RootNamespace>$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+		    <AssemblyName>$(MSBuildProjectName)</AssemblyName>
+		    <Platforms>AnyCPU</Platforms>
+		    <LangVersion>10.0</LangVersion>
+		    <ImplicitUsings>false</ImplicitUsings>
+			<UseWPF>true</UseWPF>
+			<UseWindowsForms>true</UseWindowsForms>
+
+
+	</PropertyGroup>
+
+
+	  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+		    
+		    
+		    <Reference Include="AdWindows">
+			      <HintPath>..\packages\Revit_All_Main_Versions_API_x64.2023.0.0\lib\net48\AdWindows.dll</HintPath>
+			      <Private>False</Private>
+			   
+		</Reference>
+		    <Reference Include="UIFramework">
+			      <HintPath>..\packages\Revit_All_Main_Versions_API_x64.2023.0.0\lib\net48\UIFramework.dll</HintPath>
+			      <Private>False</Private>
+			   
+		</Reference>
+		 
+	</ItemGroup>
+	 
+
+	<PropertyGroup Condition="'$(RevitYear)' == '' and '$(TargetFramework)' == 'net48'">
+		<RevitYear>2022</RevitYear>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(RevitYear)' == '' and '$(TargetFramework)' == 'net8.0-windows'">
+		<RevitYear>2025</RevitYear>
+	</PropertyGroup>
+
+
+	<!-- Revit 2022 -->
+  <ItemGroup Condition="'$(RevitYear)' == '2022'">
+    <PackageReference Include="Revit_All_Main_Versions_API_x64" Version="2022.0.0" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(RevitYear)' == '2022'">
+    <DefineConstants>REVIT_2022</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Revit 2023 -->
+  <ItemGroup Condition="'$(RevitYear)' == '2023'">
+    <PackageReference Include="Revit_All_Main_Versions_API_x64" Version="2023.0.0" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(RevitYear)' == '2023'">
+    <DefineConstants>REVIT_2023</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Revit 2024 -->
+  <ItemGroup Condition="'$(RevitYear)' == '2024'">
+    <PackageReference Include="Revit_All_Main_Versions_API_x64" Version="2024.2.0" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(RevitYear)' == '2024'">
+    <DefineConstants>REVIT_2024</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Revit 2025 -->
+  <ItemGroup Condition="'$(RevitYear)' == '2025'">
+    <PackageReference Include="Revit_All_Main_Versions_API_x64" Version="2025.0.0" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(RevitYear)' == '2025'">
+    <DefineConstants>REVIT_2025</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Revit 2026 -->
+  <ItemGroup Condition="'$(RevitYear)' == '2026'">
+    <PackageReference Include="Revit_All_Main_Versions_API_x64" Version="2026.0.0" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(RevitYear)' == '2026'">
+    <DefineConstants>REVIT_2026</DefineConstants>
+  </PropertyGroup>
+
+
+
+	<PropertyGroup>
+		  <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+	</PropertyGroup>
+
+
+	<ItemGroup>
+	  <Compile Include="Commands\Export\BOMExport.cs" />
+	  <Compile Include="Commands\Export\TigerStop.cs" />
+	  <Compile Include="Commands\Import\Excel\ExcelToSchedule.cs" />
+	  <Compile Include="Commands\Import\Excel\MainLink.cs" />
+	  <Compile Include="Commands\Quick Tools\Connect.cs" />
+	  <Compile Include="Commands\Quick Tools\MainF&amp;R.cs" />
+	  <Compile Include="Commands\Quick Tools\MainParameterSync.cs" />
+	  <Compile Include="Commands\Quick Tools\RotateConnector.cs" />
+	  <Compile Include="Commands\Quick Tools\RotateWith.cs" />
+	  <Compile Include="Commands\Quick Tools\SharedParameter\AddParameterEvent.cs" />
+	  <Compile Include="Commands\Quick Tools\SharedParameter\FamilyTypeParameterAdd.cs" />
+	  <Compile Include="Commands\Quick Tools\SharedParameter\FormulaAddMain.cs" />
+	  <Compile Include="Commands\Quick Tools\Sleeve Place\SleevePlacer.cs" />
+	  <Compile Include="Commands\Quick Tools\Sleeve Place\SleeveSettingMain.cs" />
+	  <Compile Include="Commands\Quick Tools\Sleeve@Connector.cs" />
+	  <Compile Include="Commands\Sheet Tools\Dependent View.cs" />
+	  <Compile Include="Commands\Sheet Tools\Sheet Create\SettingsRead.cs" />
+	  <Compile Include="Commands\Sheet Tools\Sheet Create\SheetCreate.cs" />
+	  <Compile Include="Commands\Sheet Tools\Title Block Select.cs" />
+	  <Compile Include="Commands\Tagging Tools\Number\NumberRun.cs" />
+	  <Compile Include="Commands\Tagging Tools\Number\Renumbering.cs" />
+	  <Compile Include="Commands\Tagging Tools\Tag Button\Tagging.cs" />
+	  <Compile Include="Commands\Tagging Tools\Tag Button\TagTools.cs" />
+	  <Compile Include="Forms\custom form tools\CustomWindowsForms.cs" />
+	  <Compile Include="Forms\custom form tools\FilteredCheckBox.cs">
+	    <SubType>UserControl</SubType>
+	  </Compile>
+	  <Compile Include="Forms\custom form tools\FilteredCheckBox.Designer.cs" />
+	  <Compile Include="Forms\custom form tools\SectionLinkDataGrid.cs">
+	    <SubType>UserControl</SubType>
+	  </Compile>
+	  <Compile Include="Forms\custom form tools\SectionLinkDataGrid.Designer.cs" />
+	  <Compile Include="Events\SaveFileEventLink.cs" />
+	  <Compile Include="Events\RevitFileManager.cs" />
+	  <Compile Include="Forms\DependentViewForm.cs" />
+	  <Compile Include="Forms\DependentViewForm.Designer.cs" />
+	  <Compile Include="Forms\Excel\AddLink.cs" />
+	  <Compile Include="Forms\Excel\AddLink.Designer.cs" />
+	  <Compile Include="Forms\Excel\EditLink.cs" />
+	  <Compile Include="Forms\Excel\EditLink.Designer.cs" />
+	  <Compile Include="Forms\Excel\ExcelLink.cs" />
+	  <Compile Include="Forms\Excel\ExcelLink.Designer.cs" />
+	  <Compile Include="Forms\Excel\linkSettings.cs" />
+	  <Compile Include="Forms\Excel\linkSettings.Designer.cs" />
+	  <Compile Include="Forms\FindAndReplaceUI.cs" />
+	  <Compile Include="Forms\FindAndReplaceUI.Designer.cs" />
+	  <Compile Include="Forms\FormulaAdd.cs" />
+	  <Compile Include="Forms\FormulaAdd.Designer.cs" />
+	  <Compile Include="Forms\ParameterSync\EditParameterSync.cs" />
+	  <Compile Include="Forms\ParameterSync\EditParameterSync.Designer.cs" />
+	  <Compile Include="Forms\ParameterSync\NewParameterSync.cs" />
+	  <Compile Include="Forms\ParameterSync\NewParameterSync.Designer.cs" />
+	  <Compile Include="Forms\ParameterSync\ParameterSync Form.cs" />
+	  <Compile Include="Forms\ParameterSync\ParameterSync Form.Designer.cs" />
+	  <Compile Include="Forms\SelectionForm.cs">
+	    <SubType>Form</SubType>
+	  </Compile>
+	  <Compile Include="Forms\SelectionForm.Designer.cs" />
+	  <Compile Include="Forms\Settings\NumAdvancedSettings.cs" />
+	  <Compile Include="Forms\Settings\NumAdvancedSettings.Designer.cs" />
+	  <Compile Include="Forms\Settings\RenumberSettings.cs" />
+	  <Compile Include="Forms\Settings\RenumberSettings.Designer.cs" />
+	  <Compile Include="Forms\Settings\SheetSettings.cs" />
+	  <Compile Include="Forms\Settings\SheetSettings.Designer.cs" />
+	  <Compile Include="Forms\Settings\SleeveSettings.cs" />
+	  <Compile Include="Forms\Settings\SleeveSettings.Designer.cs" />
+	  <Compile Include="Forms\Settings\TagSetting.cs">
+	    <SubType>Form</SubType>
+	  </Compile>
+	  <Compile Include="Forms\Settings\TagSetting.Designer.cs" />
+	  <Compile Include="Forms\SharedParameterAdd.cs" />
+	  <Compile Include="Forms\SharedParameterAdd.Designer.cs" />
+	  <Compile Include="Forms\SheetCreateForm.cs" />
+	  <Compile Include="Forms\SheetCreateForm.Designer.cs" />
+	  <Compile Include="Geometry\Collision\CollisionEngine.cs" />
+	  <Compile Include="Geometry\Collision\CollisionResult.cs" />
+	  <Compile Include="Geometry\ElementToGeometryData.cs" />
+	  <Compile Include="Geometry\GeometryData.cs" />
+	  <Compile Include="Geometry\RTree.cs" />
+	  <Compile Include="Ribbon\DefaultRibbonBuild.cs" />
+	  <Compile Include="Ribbon\RibbonBuild.cs" />
+	  <Compile Include="Utils\RevitUtilService.cs" />
+	  <Compile Include="Utils\RevitUtilDefault.cs" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+	  <PackageReference Include="EPPlus" Version="6.1.1" />
+	</ItemGroup>
+
+	  <ItemGroup>
+		    <ProjectReference Include="..\SharedCore\SharedCore.csproj" />
+		 
+	</ItemGroup>
+
+</Project>
