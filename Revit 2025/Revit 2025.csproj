@@ -6,10 +6,22 @@
     <RootNamespace>Revit_2025</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
 	  <RevitYear>2025</RevitYear>
+	  <BaseOutputPath>..\..\..\..\..\..\ProgramData\Autodesk\Revit\Addins\2025\IntechRibbon\</BaseOutputPath>
+	  <PackageOutputPath>..\..\..\..\..\..\ProgramData\Autodesk\Revit\Addins\2025\IntechRibbon</PackageOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DebugType>portable</DebugType>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Revit Intech Ribbon - All Versions\SharedRevit.csproj" />
+    <ProjectReference Include="..\SharedCore\SharedCore.csproj" />
+    <ProjectReference Include="..\SharedRevit\SharedRevit.csproj" />
   </ItemGroup>
 
 </Project>

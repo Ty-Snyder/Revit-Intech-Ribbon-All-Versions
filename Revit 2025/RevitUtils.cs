@@ -3,13 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SharedRevit.Utils;
 
-namespace Revit_2023
+namespace Revit_2025
 {
-    internal class Program
+    internal class RevitUtils : RevitUtilsDefault
     {
-        static void Main(string[] args)
-        {
-        }
+
     }
 }

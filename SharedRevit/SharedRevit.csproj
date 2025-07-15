@@ -111,6 +111,7 @@
 	  <Compile Include="Commands\Sheet Tools\Title Block Select.cs" />
 	  <Compile Include="Commands\Tagging Tools\Number\NumberRun.cs" />
 	  <Compile Include="Commands\Tagging Tools\Number\Renumbering.cs" />
+	  <Compile Include="Commands\Tagging Tools\Number\SettingsMain.cs" />
 	  <Compile Include="Commands\Tagging Tools\Tag Button\Tagging.cs" />
 	  <Compile Include="Commands\Tagging Tools\Tag Button\TagTools.cs" />
 	  <Compile Include="Forms\custom form tools\CustomWindowsForms.cs" />
@@ -183,6 +184,8 @@
 	  <ItemGroup>
 		    <ProjectReference Include="..\SharedCore\SharedCore.csproj" />
 		 
-	</ItemGroup>
+	</ItemGroup><ItemGroup>
+  <Folder Include="Commands\Quick Tools\NewFolder\" />
+</ItemGroup>
 
 </Project>

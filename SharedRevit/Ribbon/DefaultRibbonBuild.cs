@@ -140,7 +140,7 @@ namespace SharedRevit.Ribbon
 
         protected virtual void SleeveAtConnectButton()
         {
-            AddButton("Quick Tools", "Sleeve at Connect", "Sleeve at Connect", $"{BaseCodePath}.Commands.Connector_Tools.PlaceSleeveAtConnectorCommand", "Finds closest connector to selection and places a sleeve");
+            AddButton("Quick Tools", "Sleeve at Connect", "Sleeve at Connect", $"{BaseCodePath}.Commands.PlaceSleeveAtConnectorCommand", "Finds closest connector to selection and places a sleeve");
         }
         protected virtual void TitleBlockSelectButton()
         {
@@ -179,7 +179,7 @@ namespace SharedRevit.Ribbon
 
         protected virtual PushButtonData SleeveSettingsButtonData()
         {
-            return CreateButton("Sleeve Settings Menu", "Sleeve Settings", $"{BaseCodePath}.Commands.SleeveSettings", "Menu to change settings for sleeve auto place.");
+            return CreateButton("Sleeve Settings Menu", "Sleeve Settings", $"{BaseCodePath}.Commands.SleeveSettingsMain", "Menu to change settings for sleeve auto place.");
         }
 
         protected virtual void QuickToolsSettingsDropDown()
@@ -198,7 +198,7 @@ namespace SharedRevit.Ribbon
 
         protected virtual PushButtonData NumberSettingsButtonData()
         {
-            return CreateButton("NumSet", "Number Settings", $"{BaseCodePath}.Commands.Tagging.RenumberMain", "Configure numbering behavior for tagging.");
+            return CreateButton("NumSet", "Number Settings", $"{BaseCodePath}.Commands.RenumberMain", "Configure numbering behavior for tagging.");
         }
 
         protected virtual PushButtonData TagSettingsButtonData()
@@ -325,7 +325,7 @@ namespace SharedRevit.Ribbon
             return CreateButton(
             "ParameterSync",
             "Parameter Sync",
-            "Intech.ParameterSyncMenu",
+            $"{BaseCodePath}.Commands.ParameterSyncMenu",
             "Opens menu to do fancy parameter stuff."
             );
         }
@@ -335,7 +335,7 @@ namespace SharedRevit.Ribbon
             return CreateButton(
             "SharedParam",
             "Add Shared Parameter",
-            "Intech.SharedParameter.FamilyTypeParameterAdd",
+            $"{BaseCodePath}.Commands.FamilyTypeParameterAdd",
             "Opens menu to do fancy parameter stuff."
             );
         }
@@ -345,7 +345,7 @@ namespace SharedRevit.Ribbon
             return CreateButton(
             "FormulaPush",
             "Formula Push",
-            "Intech.SharedParameter.FormulaAddMain",
+            $"{BaseCodePath}.Commands.FormulaAddMain",
             "Opens menu to do fancy parameter stuff."
             );
         }
