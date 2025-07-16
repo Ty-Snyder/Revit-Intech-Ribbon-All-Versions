@@ -6,13 +6,10 @@ using System.Windows;
 using System.Windows.Forms;
 using SharedRevit.Forms.Settings;
 using SharedRevit.Utils;
-namespace Intech.Tagging
-
-
+namespace SharedRevit.Commands
 {
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-
     //Settings
     public class RenumberMain : IExternalCommand
     {

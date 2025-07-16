@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{65A465A8-7132-406C-BC8F-028B0783BFD3}</ProjectGuid>
+    <ProjectGuid>{3706AA22-ABEB-4764-94A1-1193C7FEEA24}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>Revit_2023</RootNamespace>
-    <AssemblyName>Revit 2023</AssemblyName>
-    <Properties>RevitYear=2023</Properties>
+    <RootNamespace>Revit_2022</RootNamespace>
+    <AssemblyName>Revit 2022</AssemblyName>
+    <Properties>RevitYear=2022</Properties>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -20,7 +20,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\..\..\..\ProgramData\Autodesk\Revit\Addins\2023\IntechRibbon\</OutputPath>
+    <OutputPath>..\..\..\..\..\..\ProgramData\Autodesk\Revit\Addins\2022\IntechRibbon\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>

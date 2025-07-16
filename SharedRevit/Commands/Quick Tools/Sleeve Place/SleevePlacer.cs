@@ -296,25 +296,6 @@ namespace SharedRevit.Commands
 
             FamilyInstance sleeve = doc.Create.NewFamilyInstance(center, sleeveSymbol, level, StructuralType.NonStructural);
 
-            Parameter pointDescription = sleeve.LookupParameter("Point_Description");
-            Parameter PointNum0 = sleeve.LookupParameter("GTP_PointNumber_0");
-            Parameter PointNum1 = sleeve.LookupParameter("GTP_PointNumber_1");
-            Parameter pipeService = pipeElement.LookupParameter("System Abbreviation");
-            Parameter pipeSize = pipeElement.LookupParameter("Outside Diameter");
-            if (pointDescription != null && pipeSize != null)
-            {
-                double totalpipe = pipeSize.AsDouble() + insulationThickness * 2;
-                pointDescription.Set($"{totalpipe * 12}\" - Opening");
-                if (pipeService != null && PointNum0 != null)
-                {
-                    PointNum0.Set(totalpipe * 12 + " " + pipeService.AsValueString());
-                    if (PointNum1 != null)
-                    {
-                        PointNum1.Set(totalpipe * 12 + " " + pipeService.AsValueString());
-                    }
-                }
-            }
-
             // Rotate sleeve to align Z-axis with wall normal
             XYZ currentZ = GetSleeveAxis(sleeve);
             XYZ rotationAxis = currentZ.CrossProduct(wallNormal).Normalize();
@@ -366,7 +347,23 @@ namespace SharedRevit.Commands
                 height = RoundUpToNearestIncrement(rawHeight, 0.5);
                 width = RoundUpToNearestIncrement(rawWidth, 0.5);
             }
-
+            Parameter pointDescription = sleeve.LookupParameter("Point_Description");
+            Parameter PointNum0 = sleeve.LookupParameter("GTP_PointNumber_0");
+            Parameter PointNum1 = sleeve.LookupParameter("GTP_PointNumber_1");
+            Parameter pipeService = pipeElement.LookupParameter("System Abbreviation");
+            Double pipeSize = Math.Max(height, width);
+            if (pointDescription != null && pipeSize != null)
+            {
+                pointDescription.Set($"{pipeSize * 12}\" - Opening");
+                if (pipeService != null && PointNum0 != null)
+                {
+                    PointNum0.Set(pipeSize * 12 + " " + pipeService.AsValueString());
+                    if (PointNum1 != null)
+                    {
+                        PointNum1.Set(pipeSize * 12 + " " + pipeService.AsValueString());
+                    }
+                }
+            }
             // Set sleeve dimensions
             SetSleeveDimensions(sleeve, isRound, width, height);
             MoveFamilyInstanceTo(sleeve, center);

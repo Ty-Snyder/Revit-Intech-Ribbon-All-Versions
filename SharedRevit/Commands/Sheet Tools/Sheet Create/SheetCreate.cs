@@ -95,15 +95,14 @@ namespace SharedRevit.Commands
             List<Parameter> levelParameter = new List<Parameter>();
             List<ViewSheet> viewsheets = new List<ViewSheet>();
 
+            var alltitle_blocks = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsElementType()
+                .ToElements();
+
             trans.Start();
             foreach (Element planview in selectedViews)
             {
-                //get all title blocks
-                var alltitle_blocks = new FilteredElementCollector(doc)
-                            .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                            .WhereElementIsElementType()
-                            .ToElements();
-
                 //get title block from selected string
                 Element titleblock = null;
                 foreach (FamilySymbol element in alltitle_blocks)
@@ -121,7 +120,6 @@ namespace SharedRevit.Commands
                 ViewSheet newsheet = ViewSheet.Create(doc, titleblock.Id);
                 viewsheets.Add(newsheet);
                 newsheet.Name = form.SheetName.Text;
-                //Number sheet on or near line 233
 
 
                 var title_block = new FilteredElementCollector(doc, newsheet.Id)

@@ -22,7 +22,7 @@ namespace SharedRevit.SavedFile
             this.format = format ?? throw new ArgumentNullException(nameof(format));
 
             //string baseDir = Path.Combine(App.BasePath, "SaveFileManager");
-            string baseDir = "test";
+            string baseDir = "SaveFileManager";
             Directory.CreateDirectory(baseDir);
 
             tempPath = Path.Combine(baseDir, "temp.txt");
