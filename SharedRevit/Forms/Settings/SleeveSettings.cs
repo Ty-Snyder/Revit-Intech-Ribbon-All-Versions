@@ -14,6 +14,7 @@ using System.Windows.Forms;
 using SharedCore.SaveFile;
 using SharedCore;
 using SharedRevit.Utils;
+using System.Runtime.ExceptionServices;
 
 namespace SharedRevit.Forms.Settings 
 {
@@ -42,20 +43,26 @@ namespace SharedRevit.Forms.Settings
 
             string basePath = Path.Combine(App.BasePath, "Settings.txt");
             saveFileManager = new SaveFileManager(basePath);
-            SaveFileSection section = saveFileManager.GetSectionsByName("Sleeve Place", "linked Model") ?? 
+            SaveFileSection linkedSection = saveFileManager.GetSectionsByName("Sleeve Place", "linked Model") ?? 
                 new SaveFileSection("Sleeve Place", "linked Model", "Selected link name");
-            if (section.Rows.Count() > 0 && section.Rows[0].Count() > 0 && linkNames.Contains(section.Rows[0][0]))
+            if (linkedSection.Rows.Count() > 0 && linkedSection.Rows[0].Count() > 0 && linkNames.Contains(linkedSection.Rows[0][0]))
             {
-                structCombo.Text = section.Rows[0][0];
+                structCombo.Text = linkedSection.Rows[0][0];
             }
             else
             {
                 structCombo.Text = "Current";
             }
+            SaveFileSection rectSection = saveFileManager.GetSectionsByName("Sleeve Place", "Forced Rect") ??
+                new SaveFileSection("Sleeve Place", "Forced Rect", "Override Round to rect");
+            if (rectSection.Rows.Count() > 0 && rectSection.Rows[0].Count() > 0 && rectSection.Rows[0][0] == "True")
+            {
+                ForceRectangular.Checked = true;
+            }
             {
                 SaveFileSection saveFileSection = saveFileManager.GetSectionsByName("Sleeve Place", "Round Sleeve") ??
                 new SaveFileSection("Sleeve Place", "Round Sleeve", "Active\tName\tFamily\tFamily Type\tLength Parameter\t" +
-                    "Diameter Parameter\tLength Tolerance\tDiameter Tolerance\tLength Round\tDiameter Round ");
+                    "Diameter Parameter\tLength Tolerance\tDiameter Tolerance\tLength Round\tDiameter Round");
                 RoundPanel.CellEdited += RoundPanel_CellEdited;
                 RoundPanel.RowAdded += RoundPanel_RowAdded;
 
@@ -82,6 +89,86 @@ namespace SharedRevit.Forms.Settings
 
                 RoundPanel.SetComboBoxItems("Family", famName);
 
+            }
+
+            {
+                SaveFileSection saveFileSection = saveFileManager.GetSectionsByName("Sleeve Place", "Rect Sleeve") ??
+                new SaveFileSection("Sleeve Place", "Rect Sleeve", "Active\tName\tFamily\tFamily Type\tLength Parameter\t" +
+                    "Width Parameter\tHeight Parameter\tLength Tolerance\tWidth Tolerance\tHeight Tolerance\tLength Round\tWidth Round\tHeight Round");
+                RectPanel.CellEdited += RectPanel_CellEdited;
+                RectPanel.RowAdded += RectPanel_RowAdded;
+
+                RectPanel.ConfigureColumnTypes(new Dictionary<string, ColumnType>
+                {
+                    { "Active", ColumnType.CheckBox },
+                    { "Name", ColumnType.Text },
+                    { "Family", ColumnType.ComboBox },
+                    { "Family Type", ColumnType.ComboBox },
+                    { "Length Parameter", ColumnType.ComboBox },
+                    { "Width Parameter", ColumnType.ComboBox },
+                    { "Height Parameter", ColumnType.ComboBox }
+                });
+                RectPanel.SetDefaultColumnValue("Active", "False");
+                RectPanel.SetDefaultColumnValue("Length Tolerance", "0");
+                RectPanel.SetDefaultColumnValue("Width Tolerance", "0");
+                RectPanel.SetDefaultColumnValue("Height Tolerance", "0");
+                RectPanel.SetDefaultColumnValue("Length Round", "0.5");
+                RectPanel.SetDefaultColumnValue("Width Round", "0.5");
+                RectPanel.SetDefaultColumnValue("Height Round", "0.5");
+
+                RectPanel.Initialize(saveFileManager, saveFileSection);
+
+                RectPanel.SetComboBoxItems("Family", famName);
+            }
+        }
+
+        private void RectPanel_RowAdded(object sender, EventArgs e)
+        {
+            DataGridViewRowsAddedEventArgs rowEvent = e as DataGridViewRowsAddedEventArgs;
+
+            if (RectPanel.GetCellValue(2, rowEvent.RowIndex) is string family && !string.IsNullOrWhiteSpace(family))
+            {
+                Family fam = fams.FirstOrDefault(f => f.Name == family);
+                if (fam != null)
+                {
+                    List<FamilySymbol> types = RevitUtils.GetFamilySymbols(fam);
+                    RectPanel.SetComboBoxItems("Family Type", rowEvent.RowIndex, types.Select(fs => fs.Name).ToList());
+                    List<string> parameter = RevitUtils.GetParameters(fam);
+                    RectPanel.SetComboBoxItems("Length Parameter", parameter);
+                    RectPanel.SetComboBoxItems("Width Parameter", parameter);
+                    RectPanel.SetComboBoxItems("Height Parameter", parameter);
+                }
+            }
+        }
+
+        private void RectPanel_CellEdited(object sender, EventArgs e)
+        {
+            DataGridViewCellEventArgs cellEvent = e as DataGridViewCellEventArgs;
+            if (cellEvent.ColumnIndex == 0)
+            {
+                if (RectPanel.GetCellValue(0, cellEvent.RowIndex) is Boolean boolean && boolean)
+                {
+                    int rows = RectPanel.GetRowCount();
+                    for (int i = 0; i < rows; i++)
+                    {
+                        if (i != cellEvent.RowIndex)
+                            RectPanel.SetCellValue(0, i, false);
+                    }
+                }
+            }
+            if (cellEvent.ColumnIndex == 2)
+            {
+                Family fam = fams.FirstOrDefault(f => f.Name == (string)RectPanel.GetCellValue(2, cellEvent.RowIndex));
+                List<FamilySymbol> types = RevitUtils.GetFamilySymbols(fam);
+                List<string> typeNames = types.Select(t => t.Name).ToList();
+                typeNames.Sort();
+                RectPanel.SetComboBoxItems("Family Type", cellEvent.RowIndex, typeNames);
+
+                List<string> names = new List<string>();
+                List<string> parameter = RevitUtils.GetParameters(fam);
+                RectPanel.SetComboBoxItems("Length Parameter", parameter);
+                RectPanel.SetComboBoxItems("Width Parameter", parameter);
+                RectPanel.SetComboBoxItems("Height Parameter", parameter);
             }
         }
 
@@ -140,11 +227,16 @@ namespace SharedRevit.Forms.Settings
 
         private void Save_Click(object sender, EventArgs e)
         {
-            SaveFileSection section = new SaveFileSection("Sleeve Place", "linked Model", "Selected link name");
-            section.Rows.Add(new string[] { structCombo.Text });
-            saveFileManager.AddOrUpdateSection(section);
+            SaveFileSection linkSection = new SaveFileSection("Sleeve Place", "linked Model", "Selected link name");
+            linkSection.Rows.Add(new string[] { structCombo.Text });
+            saveFileManager.AddOrUpdateSection(linkSection);
+            
+            SaveFileSection forcedRectSection = new SaveFileSection("Sleeve Place", "Forced Rect", "Override Round to rect");
+            forcedRectSection.Rows.Add(new string[] { ForceRectangular.Checked.ToString() });
+            saveFileManager.AddOrUpdateSection(forcedRectSection);
 
             RoundPanel.Confirm();
+            RectPanel.Confirm();
             this.Close();
         }
     }

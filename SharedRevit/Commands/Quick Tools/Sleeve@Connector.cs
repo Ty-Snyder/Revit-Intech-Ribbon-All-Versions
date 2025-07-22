@@ -6,14 +6,15 @@ using Autodesk.Revit.Exceptions;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using Intech;
+using SharedCore;
+using SharedCore.SaveFile;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using SharedCore.SaveFile;
-using SharedCore;
+using System.Windows.Media.Media3D;
 namespace SharedRevit.Commands
 {
     [Transaction(TransactionMode.Manual)]
@@ -88,24 +89,6 @@ namespace SharedRevit.Commands
 
                     FamilyInstance sleeve = doc.Create.NewFamilyInstance(origin, sleeveSymbol, level, StructuralType.NonStructural);
 
-                    Parameter pointDescription = sleeve.LookupParameter("Point_Description");
-                    Parameter PointNum0 = sleeve.LookupParameter("GTP_PointNumber_0");
-                    Parameter PointNum1 = sleeve.LookupParameter("GTP_PointNumber_1");
-                    Parameter pipeService = selectedElement.LookupParameter("System Abbreviation");
-                    Parameter pipeSize = selectedElement.LookupParameter("Outside Diameter");
-                    if (pointDescription != null && pipeSize != null)
-                    {
-                        double totalpipe = pipeSize.AsDouble() + insulationThickness * 2;
-                        pointDescription.Set($"{totalpipe * 12}\" - Opening");
-                        if (pipeService != null && PointNum0 != null)
-                        {
-                            PointNum0.Set(totalpipe * 12 + " " + pipeService.AsValueString());
-                            if (PointNum1 != null)
-                            {
-                                PointNum1.Set(totalpipe * 12 + " " + pipeService.AsValueString());
-                            }
-                        }
-                    }
                     MoveFamilyInstanceTo(sleeve, connector.Origin);
 
                     AlignSleeveToConnector(sleeve, connector, doc);
@@ -124,7 +107,23 @@ namespace SharedRevit.Commands
                     double increment = double.Parse(activeSettings[9]);
 
                     double sleeveSize = RoundUpToNearestIncrement(diameter + 2 * insulationThickness + tolerance, increment);
-
+                    Parameter pointDescription = sleeve.LookupParameter("Point_Description");
+                    Parameter PointNum0 = sleeve.LookupParameter("GTP_PointNumber_0");
+                    Parameter PointNum1 = sleeve.LookupParameter("GTP_PointNumber_1");
+                    Parameter pipeService = selectedElement.LookupParameter("System Abbreviation");
+                    Double pipeSize = sleeveSize;
+                    if (pointDescription != null && pipeSize != null)
+                    {
+                        pointDescription.Set($"{pipeSize * 12}\" - Opening");
+                        if (pipeService != null && PointNum0 != null)
+                        {
+                            PointNum0.Set(pipeSize * 12 + " " + pipeService.AsValueString());
+                            if (PointNum1 != null)
+                            {
+                                PointNum1.Set(pipeSize * 12 + " " + pipeService.AsValueString());
+                            }
+                        }
+                    }
                     SetSleeveDimensions(sleeve, isRound, sleeveSize, sleeveSize);
                     tx.Commit();
                 }
@@ -164,7 +163,7 @@ namespace SharedRevit.Commands
             XYZ targetZ = targetConnector.CoordinateSystem.BasisZ.Normalize();
             XYZ sleeveZ = GetSleeveAxis(sleeve);
             targetZ = new XYZ(targetZ.X , targetZ.Y, 0).Normalize();
-            double angle = sleeveZ.AngleTo(targetZ);
+            double angle = sleeveZ.AngleTo(targetZ) + Math.PI;
             if (angle < 1e-6)
                 return;
 

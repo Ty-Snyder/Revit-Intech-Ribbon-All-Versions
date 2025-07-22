@@ -225,7 +225,9 @@ namespace SharedRevit.Commands
             string basePath = Path.Combine(App.BasePath, "Settings.txt");
             SaveFileManager saveFileManager = new SaveFileManager(basePath);
             SaveFileSection section = saveFileManager.GetSectionsByName("Sleeve Place", "linked Model");
+            SaveFileSection overrideSection = saveFileManager.GetSectionsByName("Sleeve Place", "Forced Rect");
             RevitLinkInstance structuralModel = linked.FirstOrDefault(l => l.Name == section.Rows[0][0]);
+            bool forceRec = overrideSection.Rows[0][0] == "True";
 
             if (structuralModel == null)
                 return;
@@ -245,7 +247,7 @@ namespace SharedRevit.Commands
 
             // Determine if round or rectangular
             Element pipeElement = doc.GetElement(collision.A.SourceElementId);
-            bool isRound = IsRound(pipeElement);
+            bool isRound = IsRound(pipeElement) && !forceRec;
             double insulationThickness = GetInsulationThickness(doc, pipeElement);
 
 
@@ -257,7 +259,7 @@ namespace SharedRevit.Commands
             }
             else
             {
-                sec = saveFileManager.GetSectionsByName("Sleeve Place", "Rectangular Sleeve");
+                sec = saveFileManager.GetSectionsByName("Sleeve Place", "Rect Sleeve");
             }
             activeSettings = sec.lookUp(0, "True").FirstOrDefault() ?? sec.Rows[0];
 
@@ -301,52 +303,67 @@ namespace SharedRevit.Commands
             XYZ rotationAxis = currentZ.CrossProduct(wallNormal).Normalize();
             double angle = currentZ.AngleTo(wallNormal);
 
-            if (!rotationAxis.IsZeroLength() && angle > 1e-6)
+            Element host = (sleeve as FamilyInstance)?.Host;
+            if (host != null)
             {
-                Line axis = Line.CreateUnbound(center, rotationAxis);
-                ElementTransformUtils.RotateElement(doc, sleeve.Id, axis, angle);
+                Autodesk.Revit.UI.TaskDialog.Show("Host Info", $"Sleeve is hosted by: {host.Name} ({host.Id})");
             }
 
-            // Set sleeve lenght to wall thickness
-            double lengthTolerance = double.Parse(activeSettings[6]) / 12;
+            if (!rotationAxis.IsZeroLength() && angle > 1e-6)
+            {
+
+                LocationPoint location = sleeve.Location as LocationPoint;
+                XYZ origin = location?.Point ?? XYZ.Zero;
+
+                Line axis = Line.CreateUnbound(origin, rotationAxis);
+                ElementTransformUtils.RotateElement(doc, sleeve.Id, axis, angle);
+
+            }
+
+            // Calculate tolerances and rounding values
+            double heightTolerance, widthTolerance, lengthTolerance, lengthRound;
+            double height, width;
+
+            // Calculate raw dimensions
+            double rawHeight, rawWidth;
+
+            if (isRound)
+            {
+                double roundTolerance = double.Parse(activeSettings[7]) / 12;
+                double roundIncrement = double.Parse(activeSettings[9]);
+
+                heightTolerance = roundTolerance;
+                widthTolerance = roundTolerance;
+                lengthTolerance = double.Parse(activeSettings[6]) / 12;
+                lengthRound = double.Parse(activeSettings[8]);
+
+                rawHeight = difHeight + 2 * insulationThickness + heightTolerance;
+                rawWidth = difWidth + 2 * insulationThickness + widthTolerance;
+
+                height = RoundUpToNearestIncrement(rawHeight, roundIncrement);
+                width = RoundUpToNearestIncrement(rawWidth, roundIncrement);
+            }
+            else
+            {
+                heightTolerance = double.Parse(activeSettings[8]) / 12;
+                widthTolerance = double.Parse(activeSettings[9]) / 12;
+                lengthTolerance = double.Parse(activeSettings[7]) / 12;
+                lengthRound = double.Parse(activeSettings[10]);
+
+                rawHeight = difHeight + 2 * insulationThickness + heightTolerance;
+                rawWidth = difWidth + 2 * insulationThickness + widthTolerance;
+
+                height = RoundUpToNearestIncrement(rawHeight, double.Parse(activeSettings[12]));
+                width = RoundUpToNearestIncrement(rawWidth, double.Parse(activeSettings[11]));
+            }
 
             Parameter lengthParam = sleeve.LookupParameter(activeSettings[4]);
             if (lengthParam != null && !lengthParam.IsReadOnly)
             {
-                double thickness = RoundUpToNearestIncrement(difLength + lengthTolerance, double.Parse(activeSettings[8]));
+                double thickness = RoundUpToNearestIncrement(difLength + lengthTolerance, lengthRound);
                 lengthParam.Set(thickness);
             }
 
-            // Analyze intersection solid
-            double heightTolerance = 0;
-            double widthTolerance = 0;
-            if (isRound)
-            {
-
-                heightTolerance = double.Parse(activeSettings[7])/12;
-                widthTolerance = double.Parse(activeSettings[7])/12;
-            }
-            else
-            {
-                heightTolerance = 0;
-                widthTolerance = 0 / 12;
-            }
-
-            double rawHeight = difHeight + 2 * insulationThickness + heightTolerance;
-            double rawWidth = difWidth + 2 * insulationThickness + widthTolerance;
-
-            double height = 0;
-            double width = 0;
-            if (isRound)
-            {
-                height = RoundUpToNearestIncrement(rawHeight, double.Parse(activeSettings[9]));
-                width = RoundUpToNearestIncrement(rawWidth, double.Parse(activeSettings[9]));
-            }
-            else
-            {
-                height = RoundUpToNearestIncrement(rawHeight, 0.5);
-                width = RoundUpToNearestIncrement(rawWidth, 0.5);
-            }
             Parameter pointDescription = sleeve.LookupParameter("Point_Description");
             Parameter PointNum0 = sleeve.LookupParameter("GTP_PointNumber_0");
             Parameter PointNum1 = sleeve.LookupParameter("GTP_PointNumber_1");
@@ -567,8 +584,8 @@ namespace SharedRevit.Commands
             }
             else
             {
-                Parameter widthParam = sleeve.LookupParameter("Sleeve_Width");
-                Parameter heightParam = sleeve.LookupParameter("Sleeve_Length");
+                Parameter widthParam = sleeve.LookupParameter(activeSettings[5]);
+                Parameter heightParam = sleeve.LookupParameter(activeSettings[6]);
 
                 if (widthParam != null && !widthParam.IsReadOnly)
                     widthParam.Set(width);

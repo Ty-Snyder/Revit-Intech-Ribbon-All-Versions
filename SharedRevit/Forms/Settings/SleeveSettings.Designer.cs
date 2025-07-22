@@ -34,9 +34,10 @@
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.roundRectTabControl = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.RoundPanel = new SharedRevit.Forms.SectionEditorControl();
             this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.RoundPanel = new SectionEditorControl();
-            this.sectionEditorControl2 = new SectionEditorControl();
+            this.RectPanel = new SharedRevit.Forms.SectionEditorControl();
+            this.ForceRectangular = new System.Windows.Forms.CheckBox();
             this.roundRectTabControl.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
@@ -107,17 +108,6 @@
             this.tabPage1.Text = "Round Sleeve";
             this.tabPage1.UseVisualStyleBackColor = true;
             // 
-            // tabPage2
-            // 
-            this.tabPage2.Controls.Add(this.sectionEditorControl2);
-            this.tabPage2.Location = new System.Drawing.Point(4, 22);
-            this.tabPage2.Name = "tabPage2";
-            this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage2.Size = new System.Drawing.Size(921, 355);
-            this.tabPage2.TabIndex = 1;
-            this.tabPage2.Text = "Rectangular Sleeve";
-            this.tabPage2.UseVisualStyleBackColor = true;
-            // 
             // RoundPanel
             // 
             this.RoundPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -128,21 +118,44 @@
             this.RoundPanel.Size = new System.Drawing.Size(921, 355);
             this.RoundPanel.TabIndex = 0;
             // 
-            // sectionEditorControl2
+            // tabPage2
             // 
-            this.sectionEditorControl2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            this.tabPage2.Controls.Add(this.RectPanel);
+            this.tabPage2.Location = new System.Drawing.Point(4, 22);
+            this.tabPage2.Name = "tabPage2";
+            this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage2.Size = new System.Drawing.Size(921, 355);
+            this.tabPage2.TabIndex = 1;
+            this.tabPage2.Text = "Rectangular Sleeve";
+            this.tabPage2.UseVisualStyleBackColor = true;
+            // 
+            // RectPanel
+            // 
+            this.RectPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.sectionEditorControl2.Location = new System.Drawing.Point(0, 0);
-            this.sectionEditorControl2.Name = "sectionEditorControl2";
-            this.sectionEditorControl2.Size = new System.Drawing.Size(925, 361);
-            this.sectionEditorControl2.TabIndex = 0;
+            this.RectPanel.Location = new System.Drawing.Point(0, 0);
+            this.RectPanel.Name = "RectPanel";
+            this.RectPanel.Size = new System.Drawing.Size(925, 361);
+            this.RectPanel.TabIndex = 0;
+            // 
+            // ForceRectangular
+            // 
+            this.ForceRectangular.AutoSize = true;
+            this.ForceRectangular.Anchor = (System.Windows.Forms.AnchorStyles)(System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left);
+            this.ForceRectangular.Location = new System.Drawing.Point(16, 425);
+            this.ForceRectangular.Name = "ForceRectangular";
+            this.ForceRectangular.Size = new System.Drawing.Size(114, 17);
+            this.ForceRectangular.TabIndex = 5;
+            this.ForceRectangular.Text = "Force Rectangular";
+            this.ForceRectangular.UseVisualStyleBackColor = true;
             // 
             // SleeveSettings
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(953, 458);
+            this.Controls.Add(this.ForceRectangular);
             this.Controls.Add(this.roundRectTabControl);
             this.Controls.Add(this.textBox1);
             this.Controls.Add(this.Cancel);
@@ -168,6 +181,7 @@
         private System.Windows.Forms.TabPage tabPage1;
         private SectionEditorControl RoundPanel;
         private System.Windows.Forms.TabPage tabPage2;
-        private SectionEditorControl sectionEditorControl2;
+        private SectionEditorControl RectPanel;
+        private System.Windows.Forms.CheckBox ForceRectangular;
     }
 }
