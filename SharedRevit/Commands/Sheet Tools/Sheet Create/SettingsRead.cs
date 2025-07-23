@@ -35,8 +35,10 @@ namespace SharedRevit.Commands
             SaveFileSection saveFileSection = saveFileManager.GetSectionsByName("Sheet Settings", "Sheet Creator Base Settings");
             tradeAbbreviation = saveFileSection.Rows[0][0];
             SheetNumber = saveFileSection.Rows[0][1];
-            titleBlockFamily = saveFileSection.Rows[0][2];
-            titleBlockType = saveFileSection.Rows[0][3];
+            if (saveFileSection.Rows[0].Count() > 2)
+                titleBlockFamily = saveFileSection.Rows[0][2];
+            if (saveFileSection.Rows[0].Count() > 3)
+                titleBlockType = saveFileSection.Rows[0][3];
             return (tradeAbbreviation,SheetNumber, titleBlockFamily, titleBlockType);
         }
         public static Dictionary<string,(string, string)> Scale ()
