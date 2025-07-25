@@ -280,12 +280,7 @@ namespace SharedRevit.Commands
 
             if (!sleeveSymbol.IsActive)
             {
-                using (Transaction t = new Transaction(doc, "Activate Sleeve Symbol"))
-                {
-                    t.Start();
-                    sleeveSymbol.Activate();
-                    t.Commit();
-                }
+                sleeveSymbol.Activate();
             }
 
             // Find nearest level in host document
@@ -298,27 +293,36 @@ namespace SharedRevit.Commands
 
             FamilyInstance sleeve = doc.Create.NewFamilyInstance(center, sleeveSymbol, level, StructuralType.NonStructural);
 
-            // Rotate sleeve to align Z-axis with wall normal
-            XYZ currentZ = GetSleeveAxis(sleeve);
-            XYZ rotationAxis = currentZ.CrossProduct(wallNormal).Normalize();
-            double angle = currentZ.AngleTo(wallNormal);
 
-            Element host = (sleeve as FamilyInstance)?.Host;
-            if (host != null)
+            // Step 1: Rotate sleeve 90° around X-axis to set height/width orientation
+            LocationPoint location = sleeve.Location as LocationPoint;
+            XYZ origin = location?.Point ?? XYZ.Zero;
+
+            double ninetyDegrees = Math.PI / 2;
+            Line axis1 = Line.CreateUnbound(origin, XYZ.BasisX);
+            ElementTransformUtils.RotateElement(doc, sleeve.Id, axis1, ninetyDegrees);
+
+
+            // Step 2: Rotate around Z-axis to align with wall normal
+            Transform sleeveTransform = (sleeve as FamilyInstance)?.GetTransform();
+            XYZ sleeveX = sleeveTransform?.BasisX ?? XYZ.BasisX;
+
+            // Wall normal is already in XY plane
+            XYZ wallDirection = wallNormal.Normalize();
+
+            // Adjust angle by ±90° (π/2) to account for rotated frame
+            double angle = sleeveX.AngleTo(wallDirection) - (Math.PI / 2);
+
+            // Optional: Clamp angle to [-π, π] if needed
+            if (angle > Math.PI) angle -= 2 * Math.PI;
+            if (angle < -Math.PI) angle += 2 * Math.PI;
+
+            if (Math.Abs(angle) > 1e-6)
             {
-                Autodesk.Revit.UI.TaskDialog.Show("Host Info", $"Sleeve is hosted by: {host.Name} ({host.Id})");
+                Line axis2 = Line.CreateUnbound(origin, XYZ.BasisZ);
+                ElementTransformUtils.RotateElement(doc, sleeve.Id, axis2, angle);
             }
 
-            if (!rotationAxis.IsZeroLength() && angle > 1e-6)
-            {
-
-                LocationPoint location = sleeve.Location as LocationPoint;
-                XYZ origin = location?.Point ?? XYZ.Zero;
-
-                Line axis = Line.CreateUnbound(origin, rotationAxis);
-                ElementTransformUtils.RotateElement(doc, sleeve.Id, axis, angle);
-
-            }
 
             // Calculate tolerances and rounding values
             double heightTolerance, widthTolerance, lengthTolerance, lengthRound;
@@ -367,23 +371,37 @@ namespace SharedRevit.Commands
             Parameter pointDescription = sleeve.LookupParameter("Point_Description");
             Parameter PointNum0 = sleeve.LookupParameter("GTP_PointNumber_0");
             Parameter PointNum1 = sleeve.LookupParameter("GTP_PointNumber_1");
-            Parameter pipeService = pipeElement.LookupParameter("System Abbreviation");
-            Double pipeSize = Math.Max(height, width);
-            if (pointDescription != null && pipeSize != null)
+            Parameter service = pipeElement.LookupParameter("System Abbreviation");
+            Parameter sleeveService = sleeve.LookupParameter("_IMC - SYSTEM ABBREVIATION");
+            String sizeString = string.Empty;
+            if (isRound)
             {
-                pointDescription.Set($"{pipeSize * 12}\" - Opening");
-                if (pipeService != null && PointNum0 != null)
+                sizeString = (Math.Max(height, width) * 12).ToString()+ "\"";
+            }
+            else
+            {
+                sizeString = $"{width * 12}\" x {height * 12}\"";
+            }
+            if (pointDescription != null && !string.IsNullOrEmpty(sizeString))
+            {
+                pointDescription.Set($"{sizeString} - Opening");
+            }
+            if (service != null && PointNum0 != null && !string.IsNullOrEmpty(sizeString))
+            {
+                PointNum0.Set(sizeString + " " + service.AsValueString());
+                if (PointNum1 != null)
                 {
-                    PointNum0.Set(pipeSize * 12 + " " + pipeService.AsValueString());
-                    if (PointNum1 != null)
-                    {
-                        PointNum1.Set(pipeSize * 12 + " " + pipeService.AsValueString());
-                    }
+                    PointNum1.Set(sizeString + " " + service.AsValueString());
                 }
+            }
+            if (sleeveService != null && service != null)
+            {
+                sleeveService.Set(service.AsValueString());
             }
             // Set sleeve dimensions
             SetSleeveDimensions(sleeve, isRound, width, height);
             MoveFamilyInstanceTo(sleeve, center);
+
         }
         private Level GetElementLevel(Element element, Document doc)
         {
@@ -597,18 +615,6 @@ namespace SharedRevit.Commands
 
         private XYZ GetSleeveAxis(FamilyInstance sleeve)
         {
-            if (sleeve.MEPModel != null)
-            {
-                ConnectorSet connectors = sleeve.MEPModel.ConnectorManager.Connectors;
-                var ordered = connectors.Cast<Connector>().OrderBy(c => c.Origin.Z).ToList();
-
-                if (ordered.Count >= 2)
-                {
-                    XYZ dir = (ordered[1].Origin - ordered[0].Origin).Normalize();
-                    return dir;
-                }
-            }
-
             return XYZ.BasisZ; // fallback
         }
 
