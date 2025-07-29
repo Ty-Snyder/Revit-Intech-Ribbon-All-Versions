@@ -58,6 +58,13 @@ namespace SharedRevit.Forms
                     workSheetSelect.Items.Add(ws.Name);
                 }
                 workSheetSelect.Enabled = true;
+                if (workSheetSelect.Items.Count == 0)
+                {
+                    MessageBox.Show("Confused Error.", "Excel is being a little silly. Either you are trying to import a excel workbook that has no sheets(probably not) or it has just decided that " +
+                        "this code is not going to be able to see any even though they definitly exist. I fixed this before by 'saving as' to the excel at the very top option then save and close that " +
+                        "new excel file.", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
                 workSheetSelect.Text = workSheetSelect.Items[0].ToString();
             }
         }

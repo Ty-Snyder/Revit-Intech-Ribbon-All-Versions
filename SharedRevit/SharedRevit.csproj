@@ -89,6 +89,14 @@
 	</PropertyGroup>
 
 
+
+	<ItemGroup>
+	  <EmbeddedResource Remove="Commands\Quick Tools\NewFolder\**" />
+	  <None Remove="Commands\Quick Tools\NewFolder\**" />
+	  <Page Remove="Commands\Quick Tools\NewFolder\**" />
+	</ItemGroup>
+
+
 	<ItemGroup>
 	  <Compile Include="Commands\Export\BOMExport.cs" />
 	  <Compile Include="Commands\Export\TigerStop.cs" />
@@ -184,8 +192,6 @@
 	  <ItemGroup>
 		    <ProjectReference Include="..\SharedCore\SharedCore.csproj" />
 		 
-	</ItemGroup><ItemGroup>
-  <Folder Include="Commands\Quick Tools\NewFolder\" />
-</ItemGroup>
+	</ItemGroup>
 
 </Project>
