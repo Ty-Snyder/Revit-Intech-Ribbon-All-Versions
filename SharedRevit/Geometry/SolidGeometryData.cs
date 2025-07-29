@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace SharedRevit.Geometry
 {
-    public class GeometryData
+    public class SolidGeometryData
     {
 
         public Solid Solid { get; set; }
@@ -15,5 +15,4 @@ namespace SharedRevit.Geometry
         public ElementId SourceElementId { get; set; }
         public GeometryRole Role { get; set; } // A or B
     }
-    public enum GeometryRole { A, B }
 }

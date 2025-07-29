@@ -1,31 +1,24 @@
 ﻿using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
-using Autodesk.Revit.UI;
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace SharedRevit.Geometry
 {
     internal class ElementToGeometryData
     {
-        public static List<GeometryData> ConvertMEPToGeometryData(List<Reference> references, Document doc)
+
+        public static List<MeshGeometryData> ConvertMEPToGeometryData(List<Reference> references, Document doc)
         {
-            List<GeometryData> geometryDataList = new List<GeometryData>();
+            var geometryDataList = new List<MeshGeometryData>();
 
             foreach (Reference reference in references)
             {
-                List<Solid> solids = new List<Solid>();
                 Element element = doc.GetElement(reference);
                 if (element == null)
                     continue;
 
-                // Filter: Pipe, Duct, MEPCurve, FamilyInstance with MEPModel, or FabricationPart
                 bool isValidMEP =
                     element is Pipe ||
                     element is Duct ||
@@ -35,77 +28,74 @@ namespace SharedRevit.Geometry
                 if (!isValidMEP)
                     continue;
 
-                if (element is FabricationPart fab)
+                Options options = new Options
                 {
-                    Options options = new Options
-                    {
-                        ComputeReferences = true,
-                        IncludeNonVisibleObjects = true,
-                        DetailLevel = ViewDetailLevel.Fine
-                    };
-                    Mesh test = null;
-                    GeometryElement geomElement = element.get_Geometry(options);
-                    foreach (GeometryObject obj in geomElement)
-                    {
-                        if (obj is Mesh mesh)
-                        {
-                            // Store mesh or convert to bounding volume
-                            test = mesh;
-                        }
-                        else if (obj is GeometryInstance inst)
-                        {
-                            foreach (GeometryObject instObj in inst.GetInstanceGeometry())
-                            {
-                                if (instObj is Mesh instMesh)
-                                {
-                                    // Store mesh or convert to bounding volume
-                                    test = instMesh;
-                                }
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    // Use standard get_Geometry for other MEP elements
-                    Options options = new Options
-                    {
-                        ComputeReferences = true,
-                        IncludeNonVisibleObjects = true,
-                        DetailLevel = ViewDetailLevel.Fine
-                    };
+                    ComputeReferences = true,
+                    IncludeNonVisibleObjects = true,
+                    DetailLevel = ViewDetailLevel.Fine
+                };
 
-                    GeometryElement geomElement = element.get_Geometry(options);
-                    if (geomElement != null)
-                    {
-                        foreach (GeometryObject obj in geomElement)
-                        {
-                            if (obj is Solid solid && solid.Volume > 0)
-                                solids.Add(solid);
-                            else if (obj is GeometryInstance inst)
-                            {
-                                foreach (GeometryObject instObj in inst.GetInstanceGeometry())
-                                {
-                                    if (instObj is Solid instSolid && instSolid.Volume > 0)
-                                        solids.Add(instSolid);
-                                }
-                            }
-                        }
-                    }
-                }
-                foreach (Solid solid in solids)
+                GeometryElement geomElement = element.get_Geometry(options);
+                if (geomElement == null)
+                    continue;
+
+                List<Autodesk.Revit.DB.Mesh> meshes = new List<Autodesk.Revit.DB.Mesh>();
+
+                foreach (GeometryObject obj in geomElement)
                 {
-                    geometryDataList.Add(new GeometryData
+                    ExtractMeshes(obj, meshes);
+                }
+
+                foreach (var mesh in meshes)
+                {
+                    if (mesh == null || mesh.NumTriangles == 0)
+                        continue;
+
+                    var meshData = ConvertRevitMeshToMRMesh(mesh);
+                    if (meshData != null)
                     {
-                        Solid = solid,
-                        BoundingBox = element.get_BoundingBox(null),
-                        SourceElementId = element.Id,
-                        Role = GeometryRole.A
-                    });
+                        geometryDataList.Add(new MeshGeometryData
+                        {
+                            mesh = meshData,
+                            BoundingBox = element.get_BoundingBox(null),
+                            SourceElementId = element.Id,
+                            Role = GeometryRole.A
+                        });
+                    }
                 }
             }
 
             return geometryDataList;
+        }
+
+        private static void ExtractMeshes(GeometryObject obj, List<Autodesk.Revit.DB.Mesh> meshes)
+        {
+            if (obj is Autodesk.Revit.DB.Mesh mesh)
+            {
+                meshes.Add(mesh);
+            }
+            else if (obj is Solid solid)
+            {
+                foreach (Face face in solid.Faces)
+                {
+                    Autodesk.Revit.DB.Mesh faceMesh = face.Triangulate();
+                    if (faceMesh != null && faceMesh.NumTriangles > 0)
+                        meshes.Add(faceMesh);
+                }
+            }
+            else if (obj is GeometryInstance instance)
+            {
+                foreach (GeometryObject instObj in instance.GetInstanceGeometry())
+                {
+                    ExtractMeshes(instObj, meshes);
+                }
+            }
+        }
+
+        private class XYZComparer : IEqualityComparer<XYZ>
+        {
+            public bool Equals(XYZ a, XYZ b) => a.IsAlmostEqualTo(b);
+            public int GetHashCode(XYZ obj) => obj.GetHashCode();
         }
     }
 }

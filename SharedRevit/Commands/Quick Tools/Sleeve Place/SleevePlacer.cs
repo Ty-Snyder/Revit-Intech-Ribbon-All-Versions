@@ -5,6 +5,8 @@ using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+using SharedCore;
+using SharedCore.SaveFile;
 using SharedRevit.Geometry;
 using SharedRevit.Geometry.Collision;
 using SharedRevit.Utils;
@@ -15,8 +17,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using SharedCore;
-using SharedCore.SaveFile;
 
 namespace SharedRevit.Commands
 {
@@ -85,7 +85,7 @@ namespace SharedRevit.Commands
 
 
 
-            List<GeometryData> mepGeometry = ElementToGeometryData.ConvertMEPToGeometryData(references, doc);
+            List<MeshGeometryData> mepGeometry = ElementToGeometryData.ConvertMEPToGeometryData(references, doc);
             if (mepGeometry.Count == 0)
             {
                 return Result.Failed;
@@ -102,7 +102,7 @@ namespace SharedRevit.Commands
 
             RevitLinkInstance structuralModel = linked.FirstOrDefault(l => l.Name == section.Rows[0][0]);
             List<Wall> walls = GetWallsFromLinkedModel(structuralModel);
-            List<GeometryData> wallGeometry = ConvertTransformedWallsToGeometryData(structuralModel, walls);
+            List<MeshGeometryData> wallGeometry = ConvertTransformedWallsToGeometryData(structuralModel, walls);
             if (wallGeometry.Count == 0)
             {
                 return Result.Failed;
@@ -160,33 +160,30 @@ namespace SharedRevit.Commands
             return walls;
         }
 
-        public List<GeometryData> ConvertTransformedWallsToGeometryData(RevitLinkInstance linkInstance, List<Wall> walls)
-        {
-            List<GeometryData> geometryDataList = new List<GeometryData>();
 
-            // Get the transform from the linked model to the host model
+        public List<MeshGeometryData> ConvertTransformedWallsToGeometryData(RevitLinkInstance linkInstance, List<Wall> walls)
+        {
+            var geometryDataList = new List<MeshGeometryData>();
             Transform linkTransform = linkInstance.GetTransform();
 
             foreach (Wall wall in walls)
             {
-                GeometryElement geomElement = wall.get_Geometry(new Options
+                Options options = new Options
                 {
                     ComputeReferences = true,
                     IncludeNonVisibleObjects = false,
                     DetailLevel = ViewDetailLevel.Fine
-                });
+                };
 
+                GeometryElement geomElement = wall.get_Geometry(options);
                 if (geomElement == null) continue;
 
                 foreach (GeometryObject geomObj in geomElement)
                 {
-                    Solid solid = geomObj as Solid;
-                    if (solid != null && solid.Volume > 0)
+                    if (geomObj is Autodesk.Revit.DB.Mesh revitMesh && revitMesh.NumTriangles > 0)
                     {
-                        // Apply the transform to the solid
-                        Solid transformedSolid = SolidUtils.CreateTransformed(solid, linkTransform);
+                        var mesh = ConvertRevitMeshToMRMesh(revitMesh, linkTransform);
 
-                        // Transform the bounding box
                         BoundingBoxXYZ originalBox = wall.get_BoundingBox(null);
                         BoundingBoxXYZ transformedBox = null;
 
@@ -199,9 +196,9 @@ namespace SharedRevit.Commands
                             };
                         }
 
-                        geometryDataList.Add(new GeometryData
+                        geometryDataList.Add(new MeshGeometryData
                         {
-                            Solid = transformedSolid,
+                            mesh = mesh,
                             BoundingBox = transformedBox,
                             SourceElementId = wall.Id,
                             Role = GeometryRole.B
@@ -212,12 +209,18 @@ namespace SharedRevit.Commands
 
             return geometryDataList;
         }
+        private class XYZComparer : IEqualityComparer<XYZ>
+        {
+            public bool Equals(XYZ a, XYZ b) => a.IsAlmostEqualTo(b);
+            public int GetHashCode(XYZ obj) => obj.GetHashCode();
+        }
+
 
         string[] activeSettings = null;
         public void placeSleeveAtCollision(CollisionResult collision, Document doc)
         {
-            Solid intersection = collision.Intersection;
-            if (intersection == null || intersection.Faces.Size == 0)
+            //MR.DotNet.Mesh intersection = collision.Intersection;
+            if (intersection == null)
                 return;
 
             // Get linked model
@@ -536,7 +539,7 @@ namespace SharedRevit.Commands
         }
 
         private void GetBoundingMetrics(
-         Solid solid,
+         MR.DotNet.Mesh mesh,
          XYZ wallNormal,
          out double zExtent,
          out double sectionExtent,
@@ -561,28 +564,32 @@ namespace SharedRevit.Commands
             // For centroid calculation
             XYZ sum = XYZ.Zero;
             int count = 0;
-
-            foreach (Face face in solid.Faces)
+            foreach (Vector3f vertex in mesh.Points)
             {
-                Mesh mesh = face.Triangulate();
-                foreach (XYZ vertex in mesh.Vertices)
-                {
-                    double z = vertex.Z;
-                    double sectionCoord = vertex.DotProduct(sectionDirection);
-                    double normalCoord = vertex.DotProduct(wallNormal);
 
-                    if (z < minZ) minZ = z;
-                    if (z > maxZ) maxZ = z;
+                double z = vertex.Z;
 
-                    if (sectionCoord < minSection) minSection = sectionCoord;
-                    if (sectionCoord > maxSection) maxSection = sectionCoord;
+                double sectionCoord = vertex.X * sectionDirection.X +
+                                         vertex.Y * sectionDirection.Y +
+                                         vertex.Z * sectionDirection.Z;
 
-                    if (normalCoord < minNormal) minNormal = normalCoord;
-                    if (normalCoord > maxNormal) maxNormal = normalCoord;
+                double normalCoord = vertex.X * wallNormal.X +
+                                    vertex.Y * wallNormal.Y +
+                                    vertex.Z * wallNormal.Z;
 
-                    sum += vertex;
-                    count++;
-                }
+
+                if (z < minZ) minZ = z;
+                if (z > maxZ) maxZ = z;
+
+                if (sectionCoord < minSection) minSection = sectionCoord;
+                if (sectionCoord > maxSection) maxSection = sectionCoord;
+
+                if (normalCoord < minNormal) minNormal = normalCoord;
+                if (normalCoord > maxNormal) maxNormal = normalCoord;
+
+
+                sum += new XYZ(vertex.X, vertex.Y, vertex.Z);
+                count++;
             }
 
             zExtent = maxZ - minZ;

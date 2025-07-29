@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static MR.DotNet;
 
 namespace SharedRevit.Geometry.Collision
 {
@@ -17,16 +18,16 @@ namespace SharedRevit.Geometry.Collision
 
 
             public void Run(
-             IEnumerable<GeometryData> groupA,
-             IEnumerable<GeometryData> groupB,
-             double cellSize,
-             double overlap,
-             CollisionHandler onCollision)
+                IEnumerable<MeshGeometryData> groupA,
+                IEnumerable<MeshGeometryData> groupB,
+                double cellSize,
+                double overlap,
+                CollisionHandler onCollision)
             {
                 var partitions = new ConcurrentDictionary<(int x, int y, int z), Partition>();
                 var processedPairs = new ConcurrentDictionary<(ElementId, ElementId), byte>();
-                var results = new ConcurrentBag<CollisionResult>();
 
+                // Partitioning phase
                 Parallel.ForEach(groupA.Concat(groupB), record =>
                 {
                     var inflated = InflateBoundingBox(record.BoundingBox, overlap);
@@ -44,6 +45,7 @@ namespace SharedRevit.Geometry.Collision
                             }
                 });
 
+                // Collision phase
                 Parallel.ForEach(partitions.Values, partition =>
                 {
                     if (!partition.ShouldProcess()) return;
@@ -54,42 +56,36 @@ namespace SharedRevit.Geometry.Collision
                         {
                             if (!BoxesIntersect(a.BoundingBox, b.BoundingBox)) continue;
 
-
                             long id1 = GetElementIdValue(a.SourceElementId);
                             long id2 = GetElementIdValue(b.SourceElementId);
-
                             var key = id1 < id2
-                             ? (a.SourceElementId, b.SourceElementId)
-                             : (b.SourceElementId, a.SourceElementId);
-
+                                ? (a.SourceElementId, b.SourceElementId)
+                                : (b.SourceElementId, a.SourceElementId);
 
                             if (!processedPairs.TryAdd(key, 0)) continue;
 
-                            Solid intersection = null;
                             try
                             {
-                                intersection = BooleanOperationsUtils.ExecuteBooleanOperation(
-                                a.Solid,
-                                b.Solid,
-                                BooleanOperationsType.Intersect);
+                                var result = Boolean(a.mesh, b.mesh, BooleanOperation.Intersection);
+                                if (result.mesh != null && result.mesh != null && result.mesh.Points.Count > 0)
+                                {
+                                    onCollision(new CollisionResult
+                                    {
+                                        A = a,
+                                        B = b,
+                                        Intersection = result.mesh
+                                    });
+                                }
                             }
                             catch
                             {
-                            }
-
-                            if (intersection != null && intersection.Volume > 1e-6)
-                            {
-                                results.Add(new CollisionResult { A = a, B = b, Intersection = intersection });
+                                // Optional: log or handle intersection failure
                             }
                         }
                     }
                 });
-
-                foreach (var result in results)
-                {
-                    onCollision(result);
-                }
             }
+
 
 
             public static long GetElementIdValue(ElementId id)

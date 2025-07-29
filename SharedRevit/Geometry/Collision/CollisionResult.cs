@@ -10,9 +10,9 @@ namespace SharedRevit.Geometry.Collision
     public class CollisionResult
     {
 
-        public GeometryData A { get; set; }
-        public GeometryData B { get; set; }
-        public Solid Intersection
+        public MeshGeometryData A { get; set; }
+        public MeshGeometryData B { get; set; }
+        public MR.DotNet.Mesh Intersection
         {
             get; set;
 
