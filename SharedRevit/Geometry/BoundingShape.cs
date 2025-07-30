@@ -9,6 +9,7 @@ using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 
 namespace SharedRevit.Geometry
 {
@@ -64,19 +65,21 @@ namespace SharedRevit.Geometry
 
         public static IShape ShapeOptimize(Vector3[]  axes, Vector3 translation, SimpleMesh mesh)
         {
-
-            Matrix4x4 transform = new Matrix4x4(
+            Matrix4x4 rotation = new Matrix4x4(
                     axes[0].X, axes[1].X, axes[2].X, 0,
                     axes[0].Y, axes[1].Y, axes[2].Y, 0,
                     axes[0].Z, axes[1].Z, axes[2].Z, 0,
-                    -translation.X, -translation.Y, -translation.Z, 1
+                    0, 0, 0, 1
                 );
+            Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(-translation);
 
-
-
+            Matrix4x4 transform = translationMatrix * rotation;
 
             Vector3 min = new Vector3(float.MaxValue);
             Vector3 max = new Vector3(float.MinValue);
+
+            Matrix4x4 inverseTransform;
+            Matrix4x4.Invert(transform, out inverseTransform);
 
             float capsuleMinX = float.MaxValue;
             float capsuleMaxX = float.MinValue;
@@ -100,20 +103,44 @@ namespace SharedRevit.Geometry
                 float radiusSq = v.Y * v.Y + v.Z * v.Z;
                 if (radiusSq > maxRadiusSq) maxRadiusSq = radiusSq;
 
-                // Update bounding cylinder radius (Y-Z plane)
-                if (radiusSq > maxRadiusSq)
-                    maxRadiusSq = radiusSq;
+
             }
 
-            float capsuleHeight = capsuleMaxX - capsuleMinX;
-            float capsuleRadius = Math.Sqrt(maxRadiusSq);
+            // Bounding box volume
+            Vector3 boxSize = max - min;
+            float boxVolume = boxSize.X * boxSize.Y * boxSize.Z;
 
-            // Subtract 2 * radius from height to get cylinder part
-            float cylinderHeight = MathF.Max(0f, capsuleHeight - 2f * capsuleRadius);
+            //float capsuleHeight = capsuleMaxX - capsuleMinX;
+            //float capsuleRadius = (float)Math.Sqrt(maxRadiusSq);
+            //float capCylinderHeight = Math.Max(0f, capsuleHeight - 2f * capsuleRadius);
+            //float capsuleVolume = (float)Math.PI * capsuleRadius * capsuleRadius * capCylinderHeight + // cylinder
+            //    (4f / 3f) * (float)Math.PI * (float)Math.Pow(capsuleRadius, 3);         // 2 hemispheres
 
-            float capsuleVolume =
-                MathF.PI * capsuleRadius * capsuleRadius * cylinderHeight + // cylinder
-                (4f / 3f) * MathF.PI * MathF.Pow(capsuleRadius, 3);         // 2 hemispheres
+            float cylinderRadius = (float)Math.Sqrt(maxRadiusSq);
+            float height = boxSize.X;
+            float cylinderVolume = (float)Math.PI * cylinderRadius * cylinderRadius * height;
+
+            float minVolume = Math.Min(boxVolume, cylinderVolume); //Math.Min(cylinderVolume, capsuleVolume));
+            switch (minVolume)
+            {
+                case float v when v == boxVolume:
+                    // Box is the best fit
+                    return new Box(boxSize, transform);
+                case float v when v == cylinderVolume:
+                    // Cylinder is the best fit
+                    Vector3 cylocalA = new Vector3(min.X, 0, 0);
+                    Vector3 cylocalB = new Vector3(max.X, 0, 0);
+                    Vector3 cyworldA = Vector3.Transform(cylocalA, inverseTransform);
+                    Vector3 cyworldB = Vector3.Transform(cylocalB, inverseTransform);
+                    return new Cylinder(cyworldA,cyworldB,cylinderRadius);
+                //case float v when v == capsuleVolume:
+                //    // Capsule is the best fit
+                //    Vector3 localA = new Vector3(capsuleMinX, 0, 0);
+                //    Vector3 localB = new Vector3(capsuleMaxX, 0, 0);
+                //    Vector3 worldA = Vector3.Transform(localA, inverseTransform);
+                //    Vector3 worldB = Vector3.Transform(localB, inverseTransform);
+                //    return new Capsile(worldA, worldB, capsuleRadius);
+            }
 
             return null;
         }

@@ -1,8 +1,10 @@
 ﻿using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
+using SharedRevit.Geometry.Implicit_Surfaces;
 using System.Collections.Generic;
 using System.Linq;
+using SharedRevit.Geometry;
 
 namespace SharedRevit.Geometry
 {
@@ -28,40 +30,17 @@ namespace SharedRevit.Geometry
                 if (!isValidMEP)
                     continue;
 
-                Options options = new Options
+                SimpleMesh meshData = RevitToSimpleMesh.Convert(element);
+
+                if (meshData.Vertices.Count != 0)
                 {
-                    ComputeReferences = true,
-                    IncludeNonVisibleObjects = true,
-                    DetailLevel = ViewDetailLevel.Fine
-                };
-
-                GeometryElement geomElement = element.get_Geometry(options);
-                if (geomElement == null)
-                    continue;
-
-                List<Autodesk.Revit.DB.Mesh> meshes = new List<Autodesk.Revit.DB.Mesh>();
-
-                foreach (GeometryObject obj in geomElement)
-                {
-                    ExtractMeshes(obj, meshes);
-                }
-
-                foreach (var mesh in meshes)
-                {
-                    if (mesh == null || mesh.NumTriangles == 0)
-                        continue;
-
-                    var meshData = ConvertRevitMeshToMRMesh(mesh);
-                    if (meshData != null)
+                    geometryDataList.Add(new MeshGeometryData
                     {
-                        geometryDataList.Add(new MeshGeometryData
-                        {
-                            mesh = meshData,
-                            BoundingBox = element.get_BoundingBox(null),
-                            SourceElementId = element.Id,
-                            Role = GeometryRole.A
-                        });
-                    }
+                        mesh = meshData,
+                        BoundingSurface = BoundingShape.SimpleMeshToIShape(meshData),
+                        SourceElementId = element.Id,
+                        Role = GeometryRole.A
+                    });
                 }
             }
 

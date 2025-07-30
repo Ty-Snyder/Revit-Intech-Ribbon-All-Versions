@@ -1,11 +1,12 @@
 ﻿using Autodesk.Revit.DB;
+using SharedRevit.Geometry.Implicit_Surfaces;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
-using static MR.DotNet;
 
 namespace SharedRevit.Geometry.Collision
 {
@@ -30,7 +31,7 @@ namespace SharedRevit.Geometry.Collision
                 // Partitioning phase
                 Parallel.ForEach(groupA.Concat(groupB), record =>
                 {
-                    var inflated = InflateBoundingBox(record.BoundingBox, overlap);
+                    var inflated = record.BoundingSurface.GetBoundingBox();
                     var min = GetCellIndex(inflated.Min, cellSize);
                     var max = GetCellIndex(inflated.Max, cellSize);
 
@@ -45,82 +46,48 @@ namespace SharedRevit.Geometry.Collision
                             }
                 });
 
-                // Collision phase
-                Parallel.ForEach(partitions.Values, partition =>
+
+                List<Partition> containingPartition = new List<Partition>();
+                foreach (Partition part in partitions.Values)
                 {
-                    if (!partition.ShouldProcess()) return;
+                    if (!part.isEmpty())
+                    {
+                        containingPartition.Add(part);
+                    }
+                }
+
+                // Collision phase
+                Parallel.ForEach(containingPartition, partition =>
+                {
 
                     foreach (var a in partition.GroupA)
                     {
                         foreach (var b in partition.GroupB)
                         {
-                            if (!BoxesIntersect(a.BoundingBox, b.BoundingBox)) continue;
-
-                            long id1 = GetElementIdValue(a.SourceElementId);
-                            long id2 = GetElementIdValue(b.SourceElementId);
-                            var key = id1 < id2
-                                ? (a.SourceElementId, b.SourceElementId)
-                                : (b.SourceElementId, a.SourceElementId);
-
-                            if (!processedPairs.TryAdd(key, 0)) continue;
-
-                            try
+                            IShape shapeA =  a.BoundingSurface;
+                            IShape shapeB = b.BoundingSurface;
+                            IShape intersection = new IntersectionShape(shapeA, shapeB);
+                            if (!intersection.GetBoundingBox().IsEmpty)
                             {
-                                var result = Boolean(a.mesh, b.mesh, BooleanOperation.Intersection);
-                                if (result.mesh != null && result.mesh != null && result.mesh.Points.Count > 0)
+                                var idA = a.SourceElementId;
+                                var idB = b.SourceElementId;
+                                if (idA > idB)
+                                    (idA, idB) = (idB, idA);
+                                if (!processedPairs.TryAdd((idA, idB), 0))
+                                    continue;
+                                onCollision(new CollisionResult
                                 {
-                                    onCollision(new CollisionResult
-                                    {
-                                        A = a,
-                                        B = b,
-                                        Intersection = result.mesh
-                                    });
-                                }
-                            }
-                            catch
-                            {
-                                // Optional: log or handle intersection failure
+                                    A = a,
+                                    B = b,
+                                    Intersection = intersection,
+                                });
                             }
                         }
                     }
                 });
             }
 
-
-
-            public static long GetElementIdValue(ElementId id)
-            {
-                // Try to get the 'Value' property (Revit 2024+)
-                var valueProperty = typeof(ElementId).GetProperty("Value");
-                if (valueProperty != null)
-                {
-                    return (long)valueProperty.GetValue(id);
-                }
-
-                // Fallback for Revit 2023 and earlier
-                return id.IntegerValue;
-            }
-
-            bool BoxesIntersect(BoundingBoxXYZ a, BoundingBoxXYZ b)
-            {
-                return !(a.Max.X < b.Min.X || a.Min.X > b.Max.X ||
-                a.Max.Y < b.Min.Y || a.Min.Y > b.Max.Y ||
-                a.Max.Z < b.Min.Z || a.Min.Z > b.Max.Z);
-            }
-
-            public BoundingBoxXYZ InflateBoundingBox(BoundingBoxXYZ box, double overlap)
-            {
-                XYZ min = box.Min;
-                XYZ max = box.Max;
-
-                return new BoundingBoxXYZ
-                {
-                    Min = new XYZ(min.X - overlap, min.Y - overlap, min.Z - overlap),
-                    Max = new XYZ(max.X + overlap, max.Y + overlap, max.Z + overlap)
-                };
-            }
-
-            public (int x, int y, int z) GetCellIndex(XYZ point, double cellSize)
+            public (int x, int y, int z) GetCellIndex(Vector3 point, double cellSize)
             {
                 return (
                     (int)Math.Floor(point.X / cellSize),

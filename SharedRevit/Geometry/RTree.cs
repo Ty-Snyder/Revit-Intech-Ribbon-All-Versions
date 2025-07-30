@@ -17,7 +17,8 @@ namespace SharedRevit.Geometry
             else GroupB.Add(record);
         }
 
-        public bool ShouldProcess() => GroupA.Count > 0 && GroupB.Count > 0;
+        public bool isEmpty() => GroupA.Count == 0 || GroupB.Count == 0;
+
 
     }
 }

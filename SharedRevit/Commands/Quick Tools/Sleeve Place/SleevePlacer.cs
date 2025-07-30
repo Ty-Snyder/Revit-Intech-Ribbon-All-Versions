@@ -9,11 +9,13 @@ using SharedCore;
 using SharedCore.SaveFile;
 using SharedRevit.Geometry;
 using SharedRevit.Geometry.Collision;
+using SharedRevit.Geometry.Implicit_Surfaces;
 using SharedRevit.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -78,6 +80,11 @@ namespace SharedRevit.Commands
                          }
                      }
                  }
+                 if (elem is FabricationPart fab)
+                 {
+                     return true;
+                 }
+
                  return false;
              })
              .ToList();
@@ -168,42 +175,17 @@ namespace SharedRevit.Commands
 
             foreach (Wall wall in walls)
             {
-                Options options = new Options
-                {
-                    ComputeReferences = true,
-                    IncludeNonVisibleObjects = false,
-                    DetailLevel = ViewDetailLevel.Fine
-                };
+                SimpleMesh meshData = RevitToSimpleMesh.Convert(wall, linkTransform);
 
-                GeometryElement geomElement = wall.get_Geometry(options);
-                if (geomElement == null) continue;
-
-                foreach (GeometryObject geomObj in geomElement)
+                if (meshData.Vertices.Count != 0)
                 {
-                    if (geomObj is Autodesk.Revit.DB.Mesh revitMesh && revitMesh.NumTriangles > 0)
+                    geometryDataList.Add(new MeshGeometryData
                     {
-                        var mesh = ConvertRevitMeshToMRMesh(revitMesh, linkTransform);
-
-                        BoundingBoxXYZ originalBox = wall.get_BoundingBox(null);
-                        BoundingBoxXYZ transformedBox = null;
-
-                        if (originalBox != null)
-                        {
-                            transformedBox = new BoundingBoxXYZ
-                            {
-                                Min = linkTransform.OfPoint(originalBox.Min),
-                                Max = linkTransform.OfPoint(originalBox.Max)
-                            };
-                        }
-
-                        geometryDataList.Add(new MeshGeometryData
-                        {
-                            mesh = mesh,
-                            BoundingBox = transformedBox,
-                            SourceElementId = wall.Id,
-                            Role = GeometryRole.B
-                        });
-                    }
+                        mesh = meshData,
+                        BoundingSurface = BoundingShape.SimpleMeshToIShape(meshData),
+                        SourceElementId = wall.Id,
+                        Role = GeometryRole.B
+                    }); ;
                 }
             }
 
@@ -219,7 +201,7 @@ namespace SharedRevit.Commands
         string[] activeSettings = null;
         public void placeSleeveAtCollision(CollisionResult collision, Document doc)
         {
-            //MR.DotNet.Mesh intersection = collision.Intersection;
+            IShape intersection = collision.Intersection;
             if (intersection == null)
                 return;
 
@@ -539,7 +521,7 @@ namespace SharedRevit.Commands
         }
 
         private void GetBoundingMetrics(
-         MR.DotNet.Mesh mesh,
+         IShape mesh,
          XYZ wallNormal,
          out double zExtent,
          out double sectionExtent,
@@ -564,33 +546,33 @@ namespace SharedRevit.Commands
             // For centroid calculation
             XYZ sum = XYZ.Zero;
             int count = 0;
-            foreach (Vector3f vertex in mesh.Points)
-            {
+            //foreach (Vector3 vertex in mesh)
+            //{
 
-                double z = vertex.Z;
+            //    double z = vertex.Z;
 
-                double sectionCoord = vertex.X * sectionDirection.X +
-                                         vertex.Y * sectionDirection.Y +
-                                         vertex.Z * sectionDirection.Z;
+            //    double sectionCoord = vertex.X * sectionDirection.X +
+            //                             vertex.Y * sectionDirection.Y +
+            //                             vertex.Z * sectionDirection.Z;
 
-                double normalCoord = vertex.X * wallNormal.X +
-                                    vertex.Y * wallNormal.Y +
-                                    vertex.Z * wallNormal.Z;
-
-
-                if (z < minZ) minZ = z;
-                if (z > maxZ) maxZ = z;
-
-                if (sectionCoord < minSection) minSection = sectionCoord;
-                if (sectionCoord > maxSection) maxSection = sectionCoord;
-
-                if (normalCoord < minNormal) minNormal = normalCoord;
-                if (normalCoord > maxNormal) maxNormal = normalCoord;
+            //    double normalCoord = vertex.X * wallNormal.X +
+            //                        vertex.Y * wallNormal.Y +
+            //                        vertex.Z * wallNormal.Z;
 
 
-                sum += new XYZ(vertex.X, vertex.Y, vertex.Z);
-                count++;
-            }
+            //    if (z < minZ) minZ = z;
+            //    if (z > maxZ) maxZ = z;
+
+            //    if (sectionCoord < minSection) minSection = sectionCoord;
+            //    if (sectionCoord > maxSection) maxSection = sectionCoord;
+
+            //    if (normalCoord < minNormal) minNormal = normalCoord;
+            //    if (normalCoord > maxNormal) maxNormal = normalCoord;
+
+
+            //    sum += new XYZ(vertex.X, vertex.Y, vertex.Z);
+            //    count++;
+            //}
 
             zExtent = maxZ - minZ;
             sectionExtent = maxSection - minSection;

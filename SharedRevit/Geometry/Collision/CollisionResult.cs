@@ -1,4 +1,5 @@
 ﻿using Autodesk.Revit.DB;
+using SharedRevit.Geometry.Implicit_Surfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +13,7 @@ namespace SharedRevit.Geometry.Collision
 
         public MeshGeometryData A { get; set; }
         public MeshGeometryData B { get; set; }
-        public MR.DotNet.Mesh Intersection
+        public IShape Intersection
         {
             get; set;
 
