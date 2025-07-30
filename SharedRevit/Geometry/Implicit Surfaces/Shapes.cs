@@ -41,8 +41,11 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
 
             // Box is centered at origin in local space
             Vector3 halfSize = Size * 0.5f;
-            Vector3 d = Vector3.Max(localPoint - halfSize, Vector3.Zero) + Vector3.Max(-localPoint - halfSize, Vector3.Zero);
-            return d.Length();
+            Vector3 q = Vector3.Abs(localPoint) - halfSize;
+            float outsideDistance = Vector3.Max(q, Vector3.Zero).Length();
+            float insideDistance = Math.Min(Math.Max(q.X, Math.Max(q.Y, q.Z)), 0.0f);
+            return outsideDistance + insideDistance;
+
         }
 
         public Vector3 Gradient(Vector3 point)
@@ -135,26 +138,27 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
         }
 
         public double SignedDistance(Vector3 point)
-        {
-            Vector3 pa = point - A;
-            Vector3 ba = B - A;
-            float baLength = ba.Length();
-            Vector3 baNorm = Vector3.Normalize(ba);
+{
+    Vector3 pa = point - A;
+    Vector3 ba = B - A;
+    float baLength = ba.Length();
+    Vector3 baNorm = ba / baLength;
 
-            float h = Vector3.Dot(pa, baNorm);
+    float h = Vector3.Dot(pa, baNorm);
+    Vector3 radial = pa - baNorm * h;
 
-            if (h < 0f || h > baLength)
-            {
-                // Below bottom or abbove top cap
-                return (point - A).Length() - Radius;
-            }
-            else
-            {
-                // Side wall
-                Vector3 proj = A + baNorm * h;
-                return (point - proj).Length() - Radius;
-            }
-        }
+    float clampedH = ShapeUtils.Clamp(h, 0, baLength);
+    Vector3 closest = A + baNorm * clampedH;
+    float radialDist = (point - closest).Length();
+
+    if (h < 0)
+        return Math.Sqrt(radial.LengthSquared() + h * h) - Radius;
+    else if (h > baLength)
+        return Math.Sqrt(radial.LengthSquared() + (h - baLength) * (h - baLength)) - Radius;
+    else
+        return radial.Length() - Radius;
+}
+
 
         public Vector3 Gradient(Vector3 point)
         {
@@ -166,12 +170,36 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
             return Vector3.Normalize(new Vector3(dx, dy, dz));
         }
 
+
         public BoundingBox3D GetBoundingBox()
         {
-            Vector3 min = Vector3.Min(A, B) - new Vector3(Radius);
-            Vector3 max = Vector3.Max(A, B) + new Vector3(Radius);
+            Vector3 axis = Vector3.Normalize(B - A);
+            Vector3 up = Math.Abs(Vector3.Dot(axis, Vector3.UnitY)) > 0.99f ? Vector3.UnitX : Vector3.UnitY;
+            Vector3 right = Vector3.Normalize(Vector3.Cross(axis, up));
+            Vector3 forward = Vector3.Cross(right, axis);
+
+            Vector3[] offsets = new[]
+            {
+        right * Radius,
+        -right * Radius,
+        forward * Radius,
+        -forward * Radius
+    };
+
+            Vector3 min = Vector3.Min(A, B);
+            Vector3 max = Vector3.Max(A, B);
+
+            foreach (var offset in offsets)
+            {
+                min = Vector3.Min(min, A + offset);
+                min = Vector3.Min(min, B + offset);
+                max = Vector3.Max(max, A + offset);
+                max = Vector3.Max(max, B + offset);
+            }
+
             return new BoundingBox3D(min, max);
         }
+
     }
 
 

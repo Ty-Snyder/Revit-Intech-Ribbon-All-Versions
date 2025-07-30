@@ -125,13 +125,22 @@ namespace SharedRevit.Geometry
             {
                 case float v when v == boxVolume:
                     // Box is the best fit
-                    return new Box(boxSize, transform);
+
+                    Vector3 shapeCenterLocal = (min + max) * 0.5f; // Center in PCA space
+                    Vector3 shapeCenterWorld = Vector3.Transform(shapeCenterLocal, inverseTransform); // Back to world space
+
+                    Vector3 offset = shapeCenterWorld - translation; // translation is PCA centroid
+                    Matrix4x4 correctedTranslation = Matrix4x4.CreateTranslation(-translation + offset);
+                    Matrix4x4 correctedTransform = correctedTranslation * rotation;
+
+                    return new Box(boxSize, correctedTransform);
+
                 case float v when v == cylinderVolume:
                     // Cylinder is the best fit
                     Vector3 cylocalA = new Vector3(min.X, 0, 0);
                     Vector3 cylocalB = new Vector3(max.X, 0, 0);
-                    Vector3 cyworldA = Vector3.Transform(cylocalA, inverseTransform);
-                    Vector3 cyworldB = Vector3.Transform(cylocalB, inverseTransform);
+                    Vector3 cyworldA = Vector3.Transform(cylocalA, transform);
+                    Vector3 cyworldB = Vector3.Transform(cylocalB, transform);
                     return new Cylinder(cyworldA,cyworldB,cylinderRadius);
                 //case float v when v == capsuleVolume:
                 //    // Capsule is the best fit

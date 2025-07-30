@@ -89,9 +89,6 @@ namespace SharedRevit.Commands
              })
              .ToList();
 
-
-
-
             List<MeshGeometryData> mepGeometry = ElementToGeometryData.ConvertMEPToGeometryData(references, doc);
             if (mepGeometry.Count == 0)
             {
