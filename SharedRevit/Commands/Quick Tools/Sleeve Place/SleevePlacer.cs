@@ -185,7 +185,6 @@ namespace SharedRevit.Commands
                     }); ;
                 }
             }
-
             return geometryDataList;
         }
         private class XYZComparer : IEqualityComparer<XYZ>

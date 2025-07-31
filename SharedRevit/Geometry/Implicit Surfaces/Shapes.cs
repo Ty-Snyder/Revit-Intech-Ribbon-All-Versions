@@ -1,4 +1,6 @@
 ﻿
+using Autodesk.Revit.DB;
+using MathNet.Numerics.LinearAlgebra;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,13 +9,11 @@ using System.Net.NetworkInformation;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
-using MathNet.Numerics.LinearAlgebra;
 
 namespace SharedRevit.Geometry.Implicit_Surfaces
 {
     public interface IShape
     {
-        Vector3 Gradient(Vector3 point);
 
         double SignedDistance(Vector3 point);
 
@@ -31,6 +31,7 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
         {
             Size = size;
             Transform = transform;
+            BoundingBox3D box = this.GetBoundingBox();
         }
 
         public double SignedDistance(Vector3 point)
@@ -48,16 +49,88 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
 
         }
 
-        public Vector3 Gradient(Vector3 point)
+        public SimpleMesh IntersectLines(SimpleMesh mesh)
         {
-            Matrix4x4.Invert(Transform, out Matrix4x4 inverse);
-            Vector3 localPoint = Vector3.Transform(point, inverse);
-            Vector3 halfSize = Size * 0.5f;
-            Vector3 localGradient = Vector3.Normalize(localPoint);
+            SimpleMesh result = new SimpleMesh();
 
-            // Transform gradient back to world space
-            Vector3 worldGradient = Vector3.TransformNormal(localGradient, Transform);
-            return Vector3.Normalize(worldGradient);
+            foreach (var line in mesh.Lines)
+            {
+                Vector3 p0 = mesh.Vertices[line.StartIndex];
+                Vector3 p1 = mesh.Vertices[line.EndIndex];
+
+                if (LineIntersectsBox(p0, p1, out Vector3 intersection1, out Vector3? intersection2))
+                {
+                    result.Vertices.Add(intersection1);
+                    if (intersection2.HasValue)
+                        result.Vertices.Add(intersection2.Value);
+                }
+            }
+
+            return result;
+        }
+
+        private static float GetComponent(Vector3 v, int index)
+        {
+            return index switch
+            {
+                0 => v.X,
+                1 => v.Y,
+                2 => v.Z,
+                _ => throw new ArgumentOutOfRangeException(nameof(index))
+            };
+        }
+
+        private bool LineIntersectsBox(Vector3 p0, Vector3 p1, out Vector3 intersection1, out Vector3? intersection2)
+        {
+            // Transform line into box local space
+            Matrix4x4.Invert(this.Transform, out Matrix4x4 inverse);
+            Vector3 l0 = Vector3.Transform(p0, inverse);
+            Vector3 l1 = Vector3.Transform(p1, inverse);
+
+            Vector3 dir = l1 - l0;
+            Vector3 min = -Size * 0.5f;
+            Vector3 max = Size * 0.5f;
+
+            float tmin = 0, tmax = 1;
+
+            for (int i = 0; i < 3; i++)
+            {
+                float start = GetComponent(l0, i);
+                float delta = GetComponent(dir, i);
+                float minVal = GetComponent(min, i);
+                float maxVal = GetComponent(max, i);
+
+                if (Math.Abs(delta) < 1e-6f)
+                {
+                    if (start < minVal || start > maxVal)
+                    {
+                        intersection1 = default;
+                        intersection2 = null;
+                        return false;
+                    }
+                }
+                else
+                {
+                    float t1 = (minVal - start) / delta;
+                    float t2 = (maxVal - start) / delta;
+
+                    if (t1 > t2) (t1, t2) = (t2, t1);
+
+                    tmin = Math.Max(tmin, t1);
+                    tmax = Math.Min(tmax, t2);
+
+                    if (tmin > tmax)
+                    {
+                        intersection1 = default;
+                        intersection2 = null;
+                        return false;
+                    }
+                }
+            }
+
+            intersection1 = Vector3.Transform(l0 + tmin * dir, this.Transform);
+            intersection2 = tmax > tmin ? Vector3.Transform(l0 + tmax * dir, this.Transform) : (Vector3?)null;
+            return true;
         }
 
         public BoundingBox3D GetBoundingBox()
@@ -84,127 +157,54 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
         }
     }
 
-    public struct Capsile : IShape
-    {
-        public Vector3 A; // Center of one hemisphere
-        public Vector3 B; // Center of the other hemisphere
-        public double Radius;
-
-        public Capsile(Vector3 a, Vector3 b, double radius)
-        {
-            A = a;
-            B = b;
-            Radius = radius;
-        }
-
-        public double SignedDistance(Vector3 point)
-        {
-            Vector3 pa = point - A;
-            Vector3 ba = B - A;
-            float h = (float)ShapeUtils.Clamp(Vector3.Dot(pa, ba) / Vector3.Dot(ba, ba), 0, 1);
-            Vector3 closest = A + h * ba;
-            return (point - closest).Length() - Radius;
-        }
-
-        public Vector3 Gradient(Vector3 point)
-        {
-            Vector3 pa = point - A;
-            Vector3 ba = B - A;
-            float h = (float)ShapeUtils.Clamp(Vector3.Dot(pa, ba) / Vector3.Dot(ba, ba), 0, 1);
-            Vector3 closest = A + h * ba;
-            Vector3 grad = Vector3.Normalize(point - closest);
-            return grad;
-        }
-
-        public BoundingBox3D GetBoundingBox()
-        {
-            Vector3 min = Vector3.Min(A, B) - new Vector3((float)Radius);
-            Vector3 max = Vector3.Max(A, B) + new Vector3((float)Radius);
-            return new BoundingBox3D(min, max);
-        }
-    }
-
-    public struct Cylinder : IShape
-    {
-        public Vector3 A; // Base center
-        public Vector3 B; // Top center
-        public float Radius;
-
-        public Cylinder(Vector3 a, Vector3 b, float radius)
-        {
-            A = a;
-            B = b;
-            Radius = radius;
-        }
-
-        public double SignedDistance(Vector3 point)
-{
-    Vector3 pa = point - A;
-    Vector3 ba = B - A;
-    float baLength = ba.Length();
-    Vector3 baNorm = ba / baLength;
-
-    float h = Vector3.Dot(pa, baNorm);
-    Vector3 radial = pa - baNorm * h;
-
-    float clampedH = ShapeUtils.Clamp(h, 0, baLength);
-    Vector3 closest = A + baNorm * clampedH;
-    float radialDist = (point - closest).Length();
-
-    if (h < 0)
-        return Math.Sqrt(radial.LengthSquared() + h * h) - Radius;
-    else if (h > baLength)
-        return Math.Sqrt(radial.LengthSquared() + (h - baLength) * (h - baLength)) - Radius;
-    else
-        return radial.Length() - Radius;
-}
-
-
-        public Vector3 Gradient(Vector3 point)
-        {
-            // Approximate gradient using central differences
-            float eps = 1e-4f;
-            float dx = (float)SignedDistance(point + new Vector3(eps, 0, 0)) - (float)SignedDistance(point - new Vector3(eps, 0, 0));
-            float dy = (float)SignedDistance(point + new Vector3(0, eps, 0)) - (float)SignedDistance(point - new Vector3(0, eps, 0));
-            float dz = (float)SignedDistance(point + new Vector3(0, 0, eps)) - (float)SignedDistance(point - new Vector3(0, 0, eps));
-            return Vector3.Normalize(new Vector3(dx, dy, dz));
-        }
-
-
-        public BoundingBox3D GetBoundingBox()
-        {
-            Vector3 axis = Vector3.Normalize(B - A);
-            Vector3 up = Math.Abs(Vector3.Dot(axis, Vector3.UnitY)) > 0.99f ? Vector3.UnitX : Vector3.UnitY;
-            Vector3 right = Vector3.Normalize(Vector3.Cross(axis, up));
-            Vector3 forward = Vector3.Cross(right, axis);
-
-            Vector3[] offsets = new[]
-            {
-                right * Radius,
-                -right * Radius,
-                forward * Radius,
-                -forward * Radius
-            };
-
-            Vector3 min = Vector3.Min(A, B);
-            Vector3 max = Vector3.Max(A, B);
-
-            foreach (var offset in offsets)
-            {
-                min = Vector3.Min(min, A + offset);
-                min = Vector3.Min(min, B + offset);
-                max = Vector3.Max(max, A + offset);
-                max = Vector3.Max(max, B + offset);
-            }
-
-            return new BoundingBox3D(min, max);
-        }
-
-    }
-
-
     public class ShapeUtils
     {
+
+        public static Box? Intersection (Box a, Box b, int resolution = 3)
+        {
+
+            List<Vector3> points = new();
+
+            // Sample points from both boxes
+            points.AddRange(SampleBoxPoints(a, resolution));
+            points.AddRange(SampleBoxPoints(b, resolution));
+
+            // Keep only points inside both boxes
+            var inside = points.Where(p => a.SignedDistance(p) <= 0 && b.SignedDistance(p) <= 0).ToList();
+
+            if (inside.Count < 3)
+                return null;
+
+            // Build a SimpleMesh from the intersection points
+            SimpleMesh mesh = new SimpleMesh();
+            mesh.Vertices.AddRange(inside);
+
+            // Use your existing PCA-based box fitting
+            return (Box)BoundingShape.SimpleMeshToIShape(mesh);
+        }
+
+        private static IEnumerable<Vector3> SampleBoxPoints(Box box, int resolution)
+        {
+            List<Vector3> points = new();
+            Vector3 half = box.Size * 0.5f;
+
+            for (int xi = -resolution; xi <= resolution; xi++)
+                for (int yi = -resolution; yi <= resolution; yi++)
+                    for (int zi = -resolution; zi <= resolution; zi++)
+                    {
+                        Vector3 local = new Vector3(
+                            xi / (float)resolution * half.X,
+                            yi / (float)resolution * half.Y,
+                            zi / (float)resolution * half.Z
+                        );
+
+                        Vector3 world = Vector3.Transform(local, box.Transform);
+                        points.Add(world);
+                    }
+
+            return points;
+        }
+
         public static IShape Union(IShape a, IShape b)
         {
             return new UnionShape(a, b);
@@ -265,13 +265,6 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
             return Math.Min(a.SignedDistance(point), b.SignedDistance(point));
         }
 
-        public Vector3 Gradient(Vector3 point)
-        {
-            return a.SignedDistance(point) < b.SignedDistance(point)
-                ? a.Gradient(point)
-                : b.Gradient(point);
-        }
-
         public BoundingBox3D GetBoundingBox()
         {
             return BoundingBox3D.Union(a.GetBoundingBox(), b.GetBoundingBox());
@@ -293,13 +286,6 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
             return Math.Max(a.SignedDistance(point), b.SignedDistance(point));
         }
 
-        public Vector3 Gradient(Vector3 point)
-        {
-            return a.SignedDistance(point) > b.SignedDistance(point)
-                ? a.Gradient(point)
-                : b.Gradient(point);
-        }
-
         public BoundingBox3D GetBoundingBox()
         {
             return BoundingBox3D.Intersect(a.GetBoundingBox(), b.GetBoundingBox());
@@ -318,13 +304,6 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
         public double SignedDistance(Vector3 point)
         {
             return Math.Max(a.SignedDistance(point), -b.SignedDistance(point));
-        }
-
-        public Vector3 Gradient(Vector3 point)
-        {
-            return a.SignedDistance(point) > -b.SignedDistance(point)
-                ? a.Gradient(point)
-                : -b.Gradient(point);
         }
 
         public BoundingBox3D GetBoundingBox()

@@ -75,28 +75,30 @@ namespace SharedRevit.Geometry
             return simpleMesh;
         }
 
-
         private static void ProcessGeometryObject(GeometryObject obj, Transform transform, SimpleMesh mesh)
         {
             switch (obj)
             {
                 case Solid solid:
                     Solid transformedSolid = SolidUtils.CreateTransformed(solid, transform);
-                    foreach (Face face in transformedSolid.Faces)
+                    foreach (Edge edge in transformedSolid.Edges)
                     {
-                        Mesh faceMesh = face.Triangulate(0.5);
-                        foreach (XYZ vertex in faceMesh.Vertices)
+                        IList<XYZ> points = edge.Tessellate();
+                        for (int i = 0; i < points.Count - 1; i++)
                         {
-                            mesh.Vertices.Add(new Vector3((float)vertex.X, (float)vertex.Y, (float)vertex.Z));
+                            mesh.AddLine(points[i], points[i + 1]);
                         }
                     }
                     break;
 
                 case Autodesk.Revit.DB.Mesh rawMesh:
                     Autodesk.Revit.DB.Mesh transformedMesh = rawMesh.get_Transformed(transform);
-                    foreach (XYZ vertex in transformedMesh.Vertices)
+                    for (int i = 0; i < transformedMesh.NumTriangles; i++)
                     {
-                        mesh.Vertices.Add(new Vector3((float)vertex.X, (float)vertex.Y, (float)vertex.Z));
+                        MeshTriangle tri = transformedMesh.get_Triangle(i);
+                        mesh.AddLine(tri.get_Vertex(0), tri.get_Vertex(1));
+                        mesh.AddLine(tri.get_Vertex(1), tri.get_Vertex(2));
+                        mesh.AddLine(tri.get_Vertex(2), tri.get_Vertex(0));
                     }
                     break;
 
@@ -109,15 +111,45 @@ namespace SharedRevit.Geometry
                     break;
             }
         }
+
+
     }
+
+    public struct SimpleLine
+    {
+        public int StartIndex;
+        public int EndIndex;
+
+        public SimpleLine(int start, int end)
+        {
+            StartIndex = start;
+            EndIndex = end;
+        }
+    }
+
 
     public struct SimpleMesh
     {
-        public HashSet<Vector3> Vertices;
+        public List<Vector3> Vertices;
+        public List<SimpleLine> Lines;
 
         public SimpleMesh()
         {
-            Vertices = new HashSet<Vector3>();
+            Vertices = new List<Vector3>();
+            Lines = new List<SimpleLine>();
+        }
+
+        public void AddLine(XYZ p1, XYZ p2)
+        {
+            int index1 = Vertices.Count;
+            Vertices.Add(new Vector3((float)p1.X, (float)p1.Y, (float)p1.Z));
+
+            int index2 = Vertices.Count;
+            Vertices.Add(new Vector3((float)p2.X, (float)p2.Y, (float)p2.Z));
+
+            Lines.Add(new SimpleLine(index1, index2));
         }
     }
+
+
 }
