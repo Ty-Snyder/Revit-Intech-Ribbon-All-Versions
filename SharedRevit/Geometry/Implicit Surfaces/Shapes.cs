@@ -180,11 +180,11 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
 
             Vector3[] offsets = new[]
             {
-        right * Radius,
-        -right * Radius,
-        forward * Radius,
-        -forward * Radius
-    };
+                right * Radius,
+                -right * Radius,
+                forward * Radius,
+                -forward * Radius
+            };
 
             Vector3 min = Vector3.Min(A, B);
             Vector3 max = Vector3.Max(A, B);
