@@ -172,7 +172,10 @@ namespace SharedRevit.Commands
 
             foreach (Wall wall in walls)
             {
-                SimpleMesh meshData = RevitToSimpleMesh.Convert(wall, linkTransform);
+#if NET48
+                int value = wall.Id.IntegerValue;
+#endif
+               SimpleMesh meshData = RevitToSimpleMesh.Convert(wall, linkTransform);
 
                 if (meshData.Vertices.Count != 0)
                 {
@@ -197,9 +200,7 @@ namespace SharedRevit.Commands
         string[] activeSettings = null;
         public void placeSleeveAtCollision(CollisionResult collision, Document doc)
         {
-            IShape intersection = collision.Intersection;
-            if (intersection == null)
-                return;
+            SimpleMesh intersection = collision.Intersection;
 
             // Get linked model
             List<RevitLinkInstance> linked = RevitUtils.GetLinkedModels();
@@ -395,6 +396,12 @@ namespace SharedRevit.Commands
                 return doc.GetElement(levelId) as Level;
             }
 
+            if(element is FabricationPart fab)
+            {
+                ElementId id = fab.LevelId;
+                return doc.GetElement(id) as Level;
+            }
+
             return null;
         }
         public void MoveFamilyInstanceTo(FamilyInstance instance, XYZ targetPoint)
@@ -517,7 +524,7 @@ namespace SharedRevit.Commands
         }
 
         private void GetBoundingMetrics(
-         IShape mesh,
+         SimpleMesh mesh,
          XYZ wallNormal,
          out double zExtent,
          out double sectionExtent,
@@ -542,33 +549,33 @@ namespace SharedRevit.Commands
             // For centroid calculation
             XYZ sum = XYZ.Zero;
             int count = 0;
-            //foreach (Vector3 vertex in mesh)
-            //{
+            foreach (Vector3 vertex in mesh.Vertices)
+            {
 
-            //    double z = vertex.Z;
+                double z = vertex.Z;
 
-            //    double sectionCoord = vertex.X * sectionDirection.X +
-            //                             vertex.Y * sectionDirection.Y +
-            //                             vertex.Z * sectionDirection.Z;
+                double sectionCoord = vertex.X * sectionDirection.X +
+                                         vertex.Y * sectionDirection.Y +
+                                         vertex.Z * sectionDirection.Z;
 
-            //    double normalCoord = vertex.X * wallNormal.X +
-            //                        vertex.Y * wallNormal.Y +
-            //                        vertex.Z * wallNormal.Z;
-
-
-            //    if (z < minZ) minZ = z;
-            //    if (z > maxZ) maxZ = z;
-
-            //    if (sectionCoord < minSection) minSection = sectionCoord;
-            //    if (sectionCoord > maxSection) maxSection = sectionCoord;
-
-            //    if (normalCoord < minNormal) minNormal = normalCoord;
-            //    if (normalCoord > maxNormal) maxNormal = normalCoord;
+                double normalCoord = vertex.X * wallNormal.X +
+                                    vertex.Y * wallNormal.Y +
+                                    vertex.Z * wallNormal.Z;
 
 
-            //    sum += new XYZ(vertex.X, vertex.Y, vertex.Z);
-            //    count++;
-            //}
+                if (z < minZ) minZ = z;
+                if (z > maxZ) maxZ = z;
+
+                if (sectionCoord < minSection) minSection = sectionCoord;
+                if (sectionCoord > maxSection) maxSection = sectionCoord;
+
+                if (normalCoord < minNormal) minNormal = normalCoord;
+                if (normalCoord > maxNormal) maxNormal = normalCoord;
+
+
+                sum += new XYZ(vertex.X, vertex.Y, vertex.Z);
+                count++;
+            }
 
             zExtent = maxZ - minZ;
             sectionExtent = maxSection - minSection;

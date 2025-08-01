@@ -13,7 +13,7 @@ namespace SharedRevit.Geometry.Collision
 
         public MeshGeometryData A { get; set; }
         public MeshGeometryData B { get; set; }
-        public IShape Intersection
+        public SimpleMesh Intersection
         {
             get; set;
 

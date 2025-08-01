@@ -103,7 +103,7 @@ namespace SharedRevit.Geometry
                     break;
 
                 case GeometryInstance instance:
-                    Transform instanceTransform = transform.Multiply(instance.Transform);
+                    Transform instanceTransform = instance.Transform.Multiply(transform);
                     foreach (GeometryObject instObj in instance.GetInstanceGeometry())
                     {
                         ProcessGeometryObject(instObj, instanceTransform, mesh);

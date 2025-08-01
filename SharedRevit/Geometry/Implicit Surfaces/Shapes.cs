@@ -46,7 +46,6 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
             float outsideDistance = Vector3.Max(q, Vector3.Zero).Length();
             float insideDistance = Math.Min(Math.Max(q.X, Math.Max(q.Y, q.Z)), 0.0f);
             return outsideDistance + insideDistance;
-
         }
 
         public SimpleMesh IntersectLines(SimpleMesh mesh)

@@ -72,14 +72,14 @@ namespace SharedRevit.Geometry
         public static IShape ShapeOptimize(Vector3[]  axes, Vector3 translation, SimpleMesh mesh)
         {
             Matrix4x4 rotation = new Matrix4x4(
-                    axes[0].X, axes[1].X, axes[2].X, 0,
-                    axes[0].Y, axes[1].Y, axes[2].Y, 0,
-                    axes[0].Z, axes[1].Z, axes[2].Z, 0,
-                    0, 0, 0, 1
-                );
-            Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(translation);
+                axes[0].X, axes[0].Y, axes[0].Z, 0,
+                axes[1].X, axes[1].Y, axes[1].Z, 0,
+                axes[2].X, axes[2].Y, axes[2].Z, 0,
+                0, 0, 0, 1
+            );
 
-            Matrix4x4 transform = rotation * translationMatrix;
+            Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(-translation); // move to origin
+            Matrix4x4 transform = translationMatrix * rotation;
 
             Vector3 min = new Vector3(float.MaxValue);
             Vector3 max = new Vector3(float.MinValue);
@@ -97,13 +97,16 @@ namespace SharedRevit.Geometry
                 min = Vector3.Min(min, v);
                 max = Vector3.Max(max, v);
             }
-            // Bounding box volume
+            
             Vector3 boxSize = max - min;
-            Vector3 shapeCenterLocal = (min + max) * 0.5f; // Center in PCA space
-            Vector3 shapeCenterWorld = Vector3.Transform(shapeCenterLocal, transform); // Back to world space
-            Vector3 offset = shapeCenterWorld - translation; // translation is PCA centroid
-            Matrix4x4 correctedTranslation = Matrix4x4.CreateTranslation(translation - offset);
-            Matrix4x4 correctedTransform = rotation * correctedTranslation;
+            Vector3 boxCenterLocal = (min + max) * 0.5f; // center in PCA space
+            Vector3 boxCenterWorld = Vector3.Transform(boxCenterLocal, transform);
+            Vector3 offset = translation - boxCenterWorld;
+            Matrix4x4 correctedTranslation = Matrix4x4.CreateTranslation(offset);
+            Matrix4x4 correctedTransform =  transform * rotation;
+
+            Matrix4x4 invertedCorrectedTransform;
+            Matrix4x4.Invert(correctedTransform, out invertedCorrectedTransform);
 
             return new Box(boxSize, correctedTransform);
         }
