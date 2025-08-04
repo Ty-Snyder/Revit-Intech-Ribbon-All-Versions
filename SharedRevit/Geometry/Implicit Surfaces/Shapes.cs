@@ -1,6 +1,4 @@
-﻿
-using Autodesk.Revit.DB;
-using MathNet.Numerics.LinearAlgebra;
+﻿using MathNet.Numerics.LinearAlgebra;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -48,88 +46,104 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
             return outsideDistance + insideDistance;
         }
 
-        public SimpleMesh IntersectLines(SimpleMesh mesh)
+        public SimpleMesh ClipMeshToBox(SimpleMesh inputMesh)
         {
-            SimpleMesh result = new SimpleMesh();
+            SimpleMesh outputMesh = new SimpleMesh();
+            Dictionary<int, int> vertexMap = new Dictionary<int, int>();
 
-            foreach (var line in mesh.Lines)
+            foreach (var line in inputMesh.Lines)
             {
-                Vector3 p0 = mesh.Vertices[line.StartIndex];
-                Vector3 p1 = mesh.Vertices[line.EndIndex];
+                Vector3 start = inputMesh.Vertices[line.StartIndex];
+                Vector3 end = inputMesh.Vertices[line.EndIndex];
 
-                if (LineIntersectsBox(p0, p1, out Vector3 intersection1, out Vector3? intersection2))
+                float dStart = (float)this.SignedDistance(start);
+                float dEnd = (float)this.SignedDistance(end);
+
+                // If both points are inside, keep the line
+                if (dStart <= 0 && dEnd <= 0)
                 {
-                    result.Vertices.Add(intersection1);
-                    if (intersection2.HasValue)
-                        result.Vertices.Add(intersection2.Value);
+                    int newStart = GetOrAddVertex(outputMesh, vertexMap, line.StartIndex, start);
+                    int newEnd = GetOrAddVertex(outputMesh, vertexMap, line.EndIndex, end);
+                    outputMesh.Lines.Add(new SimpleLine(newStart, newEnd));
                 }
-            }
-
-            return result;
-        }
-
-        private static float GetComponent(Vector3 v, int index)
-        {
-            return index switch
-            {
-                0 => v.X,
-                1 => v.Y,
-                2 => v.Z,
-                _ => throw new ArgumentOutOfRangeException(nameof(index))
-            };
-        }
-
-        private bool LineIntersectsBox(Vector3 p0, Vector3 p1, out Vector3 intersection1, out Vector3? intersection2)
-        {
-            // Transform line into box local space
-            Matrix4x4.Invert(this.Transform, out Matrix4x4 inverse);
-            Vector3 l0 = Vector3.Transform(p0, inverse);
-            Vector3 l1 = Vector3.Transform(p1, inverse);
-
-            Vector3 dir = l1 - l0;
-            Vector3 min = -Size * 0.5f;
-            Vector3 max = Size * 0.5f;
-
-            float tmin = 0, tmax = 1;
-
-            for (int i = 0; i < 3; i++)
-            {
-                float start = GetComponent(l0, i);
-                float delta = GetComponent(dir, i);
-                float minVal = GetComponent(min, i);
-                float maxVal = GetComponent(max, i);
-
-                if (Math.Abs(delta) < 1e-6f)
+                else if (dStart * dEnd < 0)
                 {
-                    if (start < minVal || start > maxVal)
-                    {
-                        intersection1 = default;
-                        intersection2 = null;
-                        return false;
-                    }
+                    // Line crosses the box surface: clip it
+                    float t = dStart / (dStart - dEnd);
+                    Vector3 intersection = Vector3.Lerp(start, end, t);
+
+                    int insideIndex = dStart < 0
+                        ? GetOrAddVertex(outputMesh, vertexMap, line.StartIndex, start)
+                        : GetOrAddVertex(outputMesh, vertexMap, line.EndIndex, end);
+
+                    int intersectionIndex = outputMesh.Vertices.Count;
+                    outputMesh.Vertices.Add(intersection);
+                    outputMesh.Lines.Add(new SimpleLine(insideIndex, intersectionIndex));
+                }
+                else if (dStart <= 0 || dEnd <= 0)
+                {
+                    // One point is inside, one is on the surface
+                    int insideIndex = dStart <= 0
+                        ? GetOrAddVertex(outputMesh, vertexMap, line.StartIndex, start)
+                        : GetOrAddVertex(outputMesh, vertexMap, line.EndIndex, end);
+
+                    int surfaceIndex = dStart > 0
+                        ? GetOrAddVertex(outputMesh, vertexMap, line.StartIndex, start)
+                        : GetOrAddVertex(outputMesh, vertexMap, line.EndIndex, end);
+
+                    outputMesh.Lines.Add(new SimpleLine(insideIndex, surfaceIndex));
                 }
                 else
                 {
-                    float t1 = (minVal - start) / delta;
-                    float t2 = (maxVal - start) / delta;
+                    // Both points are outside — check if line intersects box
+                    // Sample midpoint for a quick heuristic
+                    Vector3 mid = (start + end) * 0.5f;
+                    float dMid = (float)this.SignedDistance(mid);
 
-                    if (t1 > t2) (t1, t2) = (t2, t1);
-
-                    tmin = Math.Max(tmin, t1);
-                    tmax = Math.Min(tmax, t2);
-
-                    if (tmin > tmax)
+                    if (dMid <= 0)
                     {
-                        intersection1 = default;
-                        intersection2 = null;
-                        return false;
+                        // Line passes through box — clip both ends
+                        float t1 = dStart / (dStart - dEnd);
+                        float t2 = dEnd / (dEnd - dStart);
+
+                        Vector3 i1 = Vector3.Lerp(start, end, t1);
+                        Vector3 i2 = Vector3.Lerp(start, end, t2);
+
+                        int i1Index = outputMesh.Vertices.Count;
+                        outputMesh.Vertices.Add(i1);
+
+                        int i2Index = outputMesh.Vertices.Count;
+                        outputMesh.Vertices.Add(i2);
+
+                        outputMesh.Lines.Add(new SimpleLine(i1Index, i2Index));
                     }
                 }
             }
 
-            intersection1 = Vector3.Transform(l0 + tmin * dir, this.Transform);
-            intersection2 = tmax > tmin ? Vector3.Transform(l0 + tmax * dir, this.Transform) : (Vector3?)null;
-            return true;
+            return outputMesh;
+        }
+
+
+        private static int GetOrAddVertex(SimpleMesh mesh, Dictionary<int, int> map, int originalIndex, Vector3 vertex)
+        {
+            if (map.TryGetValue(originalIndex, out int newIndex))
+                return newIndex;
+
+            newIndex = mesh.Vertices.Count;
+            mesh.Vertices.Add(vertex);
+            map[originalIndex] = newIndex;
+            return newIndex;
+        }
+
+        public override string ToString()
+        {
+            string sizeStr = $"Size: ({Size.X:0.###}, {Size.Y:0.###}, {Size.Z:0.###})";
+            string translationStr = $"Translation Matrix: [{Transform.M11:0.###}, {Transform.M12:0.###}, {Transform.M13:0.###}, {Transform.M14:0.###}] " +
+                                    $"[{Transform.M21:0.###}, {Transform.M22:0.###}, {Transform.M23:0.###}, {Transform.M24:0.###}] " +
+                                    $"[{Transform.M31:0.###}, {Transform.M32:0.###}, {Transform.M33:0.###}, {Transform.M34:0.###}] " +
+                                    $"[{Transform.M41:0.###}, {Transform.M42:0.###}, {Transform.M43:0.###}, {Transform.M44:0.###}]";
+
+            return $"{sizeStr} - {translationStr}";
         }
 
         public BoundingBox3D GetBoundingBox()
@@ -154,54 +168,296 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
 
             return new BoundingBox3D(min, max);
         }
+
+        public List<(Vector3 Start, Vector3 End)> GetEdges()
+        {
+            Vector3 halfSize = Size * 0.5f;
+
+            Vector3[] localCorners = new Vector3[]
+            {
+                new Vector3(-halfSize.X, -halfSize.Y, -halfSize.Z),
+                new Vector3( halfSize.X, -halfSize.Y, -halfSize.Z),
+                new Vector3( halfSize.X,  halfSize.Y, -halfSize.Z),
+                new Vector3(-halfSize.X,  halfSize.Y, -halfSize.Z),
+                new Vector3(-halfSize.X, -halfSize.Y,  halfSize.Z),
+                new Vector3( halfSize.X, -halfSize.Y,  halfSize.Z),
+                new Vector3( halfSize.X,  halfSize.Y,  halfSize.Z),
+                new Vector3(-halfSize.X,  halfSize.Y,  halfSize.Z),
+            };
+
+            int[,] edgeIndices = new int[,]
+            {
+                {0,1},{1,2},{2,3},{3,0},
+                {4,5},{5,6},{6,7},{7,4},
+                {0,4},{1,5},{2,6},{3,7}
+            };
+
+            List<(Vector3 Start, Vector3 End)> edges = new List<(Vector3, Vector3)>();
+
+            for (int i = 0; i < edgeIndices.GetLength(0); i++)
+            {
+                Vector3 start = Vector3.Transform(localCorners[edgeIndices[i, 0]], Transform);
+                Vector3 end = Vector3.Transform(localCorners[edgeIndices[i, 1]], Transform);
+                edges.Add((start, end));
+            }
+
+            return edges;
+        }
+
+        public List<Face> GetFaces()
+        {
+            Vector3 halfSize = Size * 0.5f;
+
+            Vector3[] normals = new Vector3[]
+            {
+                Vector3.UnitX, -Vector3.UnitX,
+                Vector3.UnitY, -Vector3.UnitY,
+                Vector3.UnitZ, -Vector3.UnitZ
+            };
+
+            List<Face> faces = new List<Face>();
+
+            foreach (var normal in normals)
+            {
+                Vector3 localPoint = normal * halfSize;
+                Vector3 worldPoint = Vector3.Transform(localPoint, Transform);
+                Vector3 worldNormal = Vector3.TransformNormal(normal, Transform);
+                faces.Add(new Face(worldNormal, worldPoint));
+            }
+
+            return faces;
+        }
+        public bool ContainsPoint(Vector3 point)
+        {
+            Matrix4x4.Invert(Transform, out Matrix4x4 inverse);
+            Vector3 local = Vector3.Transform(point, inverse);
+            Vector3 half = Size * 0.5f;
+            return Math.Abs(local.X) <= half.X &&
+                   Math.Abs(local.Y) <= half.Y &&
+                   Math.Abs(local.Z) <= half.Z;
+        }
+
+        public List<Vector3> GetCorners()
+        {
+            Vector3 half = Size * 0.5f;
+            Vector3[] local = new Vector3[]
+            {
+                new Vector3(-half.X, -half.Y, -half.Z),
+                new Vector3( half.X, -half.Y, -half.Z),
+                new Vector3( half.X,  half.Y, -half.Z),
+                new Vector3(-half.X,  half.Y, -half.Z),
+                new Vector3(-half.X, -half.Y,  half.Z),
+                new Vector3( half.X, -half.Y,  half.Z),
+                new Vector3( half.X,  half.Y,  half.Z),
+                new Vector3(-half.X,  half.Y,  half.Z),
+            };
+            var self = this; // capture 'this' safely
+            var localPoints = local.Select(p => Vector3.Transform(p, self.Transform)).ToList();
+
+            return localPoints;
+        }
+
+    }
+
+    public struct Face
+    {
+        public Vector3 Normal { get; }
+        public float D { get; }
+
+        public Face(Vector3 normal, Vector3 pointOnPlane)
+        {
+            Normal = Vector3.Normalize(normal);
+            D = -Vector3.Dot(Normal, pointOnPlane);
+        }
+
+        public bool IsPointInside(Vector3 point)
+        {
+            return Vector3.Dot(Normal, point) + D <= 0;
+        }
     }
 
     public class ShapeUtils
     {
 
-        public static Box? Intersection (Box a, Box b, int resolution = 3)
+
+        public static Box IntersectBoxes(Box a, Box b)
         {
+            var points = new List<Vector3>();
 
-            List<Vector3> points = new();
+            // 1. Intersect edges of A with faces of B
+            foreach (var edge in a.GetEdges())
+            {
+                foreach (var face in b.GetFaces())
+                {
 
-            // Sample points from both boxes
-            points.AddRange(SampleBoxPoints(a, resolution));
-            points.AddRange(SampleBoxPoints(b, resolution));
-
-            // Keep only points inside both boxes
-            var inside = points.Where(p => a.SignedDistance(p) <= 0 && b.SignedDistance(p) <= 0).ToList();
-
-            if (inside.Count < 3)
-                return null;
-
-            // Build a SimpleMesh from the intersection points
-            SimpleMesh mesh = new SimpleMesh();
-            mesh.Vertices.AddRange(inside);
-
-            // Use your existing PCA-based box fitting
-            return (Box)BoundingShape.SimpleMeshToIShape(mesh);
-        }
-
-        private static IEnumerable<Vector3> SampleBoxPoints(Box box, int resolution)
-        {
-            List<Vector3> points = new();
-            Vector3 half = box.Size * 0.5f;
-
-            for (int xi = -resolution; xi <= resolution; xi++)
-                for (int yi = -resolution; yi <= resolution; yi++)
-                    for (int zi = -resolution; zi <= resolution; zi++)
+                    if (IntersectSegmentWithFace(edge.Start, edge.End, face, out Vector3 p))
                     {
-                        Vector3 local = new Vector3(
-                            xi / (float)resolution * half.X,
-                            yi / (float)resolution * half.Y,
-                            zi / (float)resolution * half.Z
-                        );
-
-                        Vector3 world = Vector3.Transform(local, box.Transform);
-                        points.Add(world);
+                        Console.WriteLine($"Intersection at: {p}");
+                        points.Add(p);
                     }
 
-            return points;
+                }
+            }
+
+            // 2. Intersect edges of B with faces of A
+            foreach (var edge in b.GetEdges())
+            {
+                foreach (var face in a.GetFaces())
+                {
+
+                    if (IntersectSegmentWithFace(edge.Start, edge.End, face, out Vector3 p))
+                    {
+                        Console.WriteLine($"Intersection at: {p}");
+                        points.Add(p);
+                    }
+
+                }
+            }
+
+            // 3. Include corners of A inside B
+            foreach (var corner in a.GetCorners())
+            {
+                if (b.ContainsPoint(corner))
+                    points.Add(corner);
+            }
+
+            // 4. Include corners of B inside A
+            foreach (var corner in b.GetCorners())
+            {
+                if (a.ContainsPoint(corner))
+                    points.Add(corner);
+            }
+
+            if (points.Count == 0)
+                return default; // No intersection
+
+            // 5. Transform points into A's local space
+            Matrix4x4.Invert(a.Transform, out Matrix4x4 aInv);
+            var localPoints = points.Select(p => Vector3.Transform(p, aInv)).ToList();
+
+            // 6. Fit a new box in A's local space
+            Vector3 min = localPoints[0], max = localPoints[0];
+            foreach (var p in localPoints)
+            {
+                min = Vector3.Min(min, p);
+                max = Vector3.Max(max, p);
+            }
+
+            Vector3 newSize = max - min;
+            Vector3 centerLocal = (min + max) * 0.5f;
+            Vector3 centerWorld = Vector3.Transform(centerLocal, a.Transform);
+
+            // 7. Return new box in A's orientation
+            Matrix4x4 newTransform = a.Transform;
+            newTransform.Translation = centerWorld;
+
+            return new Box(newSize, newTransform);
+        }
+
+        private static bool IntersectSegmentWithFace(Vector3 a, Vector3 b, Face face, out Vector3 intersection)
+        {
+            Vector3 ab = b - a;
+            float denom = Vector3.Dot(face.Normal, ab);
+            if (Math.Abs(denom) < 1e-6f)
+            {
+                intersection = default;
+                return false;
+            }
+
+            float t = -(Vector3.Dot(face.Normal, a) + face.D) / denom;
+            if (t >= 0 && t <= 1)
+            {
+                intersection = a + t * ab;
+                return true;
+            }
+
+            intersection = default;
+            return false;
+        }
+
+        public static List<List<Vector3>> GetBoxFaces(Box box)
+        {
+            Vector3 half = box.Size * 0.5f;
+
+            // Local corners
+            Vector3[] corners = new Vector3[]
+            {
+                new Vector3(-half.X, -half.Y, -half.Z),
+                new Vector3( half.X, -half.Y, -half.Z),
+                new Vector3( half.X,  half.Y, -half.Z),
+                new Vector3(-half.X,  half.Y, -half.Z),
+                new Vector3(-half.X, -half.Y,  half.Z),
+                new Vector3( half.X, -half.Y,  half.Z),
+                new Vector3( half.X,  half.Y,  half.Z),
+                new Vector3(-half.X,  half.Y,  half.Z),
+            };
+
+            // Transform to world space
+            for (int i = 0; i < corners.Length; i++)
+                corners[i] = Vector3.Transform(corners[i], box.Transform);
+
+            // Define faces using corner indices
+            int[][] faceIndices = new int[][]
+            {
+                new[] {0, 1, 2, 3}, // Bottom
+                new[] {4, 5, 6, 7}, // Top
+                new[] {0, 1, 5, 4}, // Front
+                new[] {2, 3, 7, 6}, // Back
+                new[] {1, 2, 6, 5}, // Right
+                new[] {0, 3, 7, 4}, // Left
+            };
+
+            return faceIndices.Select(face => face.Select(i => corners[i]).ToList()).ToList();
+        }
+
+        public static List<Vector3> ClipPolygonAgainstAABB(List<Vector3> polygon, Vector3 min, Vector3 max)
+        {
+            List<Vector3> output = new List<Vector3>(polygon);
+
+            // Clip against each axis
+            foreach (var axis in new[] { Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ })
+            {
+                output = ClipAgainstPlane(output, axis, Vector3.Dot(axis, min), true);
+                output = ClipAgainstPlane(output, axis, Vector3.Dot(axis, max), false);
+            }
+
+            return output;
+        }
+
+        private static List<Vector3> ClipAgainstPlane(List<Vector3> poly, Vector3 normal, float d, bool keepInside)
+        {
+            List<Vector3> result = new List<Vector3>();
+            if (poly.Count == 0) return result;
+
+            Vector3 prev = poly[1];
+            bool prevInside = Vector3.Dot(normal, prev) <= d == keepInside;
+
+            foreach (var curr in poly)
+            {
+                bool currInside = Vector3.Dot(normal, curr) <= d == keepInside;
+
+                if (currInside)
+                {
+                    if (!prevInside)
+                    {
+                        Vector3 dir = curr - prev;
+                        float t = (d - Vector3.Dot(normal, prev)) / Vector3.Dot(normal, dir);
+                        result.Add(prev + t * dir);
+                    }
+                    result.Add(curr);
+                }
+                else if (prevInside)
+                {
+                    Vector3 dir = curr - prev;
+                    float t = (d - Vector3.Dot(normal, prev)) / Vector3.Dot(normal, dir);
+                    result.Add(prev + t * dir);
+                }
+
+                prev = curr;
+                prevInside = currInside;
+            }
+
+            return result;
         }
 
         public static IShape Union(IShape a, IShape b)

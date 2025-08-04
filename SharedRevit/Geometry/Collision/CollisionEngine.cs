@@ -33,8 +33,8 @@ namespace SharedRevit.Geometry.Collision
                 {
                     foreach (var b in groupB)
                     {
-                        IShape shapeA = a.BoundingSurface;
-                        IShape shapeB = b.BoundingSurface;
+                        Box shapeA = (Box)a.BoundingSurface;
+                        Box shapeB = (Box)b.BoundingSurface;
                         BoundingBox3D intersection = BoundingBox3D.Intersect(shapeA.GetBoundingBox(), shapeB.GetBoundingBox());
                         if (!intersection.IsEmpty)
                         {
@@ -45,9 +45,13 @@ namespace SharedRevit.Geometry.Collision
                             if (!processedPairs.TryAdd((idA, idB), 0))
                                 continue;
 
-                            Box intersectBox = ShapeUtils.Intersection((Box)shapeB, (Box)shapeA, 5) ?? new Box(new Vector3(0,0,0), Matrix4x4.Identity);
+                            Box intersectBox = ShapeUtils.IntersectBoxes(shapeB, shapeA);
 
-                            SimpleMesh intersectionMesh = intersectBox.IntersectLines(a.mesh);
+                            SimpleMesh intersectionMesh = intersectBox.ClipMeshToBox(a.mesh);
+
+                            string i = intersectBox.ToString();
+                            string a1 = shapeA.ToString();
+                            string a2 = shapeB.ToString();
                             if (intersectionMesh.Vertices.Count < 3)
                                 continue;
                             onCollision(new CollisionResult

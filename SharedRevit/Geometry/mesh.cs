@@ -38,18 +38,21 @@ namespace SharedRevit.Geometry
         public static SimpleMesh Convert(Element elem)
         {
             SimpleMesh simpleMesh = new SimpleMesh();
-
+            Transform transform = Transform.Identity;
             Options options = new Options
             {
                 ComputeReferences = true,
                 IncludeNonVisibleObjects = true,
                 DetailLevel = ViewDetailLevel.Fine
             };
-
+            if (elem is FabricationPart fabPart)
+            {
+                transform = transform.Multiply(fabPart.GetTransform().Inverse);
+            }
             GeometryElement geomElement = elem.get_Geometry(options);
             foreach (GeometryObject obj in geomElement)
             {
-                ProcessGeometryObject(obj, Transform.Identity, simpleMesh);
+                ProcessGeometryObject(obj, transform, simpleMesh);
             }
             return simpleMesh;
         }

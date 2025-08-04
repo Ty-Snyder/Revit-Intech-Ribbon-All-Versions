@@ -78,8 +78,8 @@ namespace SharedRevit.Geometry
                 0, 0, 0, 1
             );
 
-            Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(-translation); // move to origin
-            Matrix4x4 transform = translationMatrix * rotation;
+            Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(translation); // move to origin
+            Matrix4x4 transform = rotation * translationMatrix;
 
             Vector3 min = new Vector3(float.MaxValue);
             Vector3 max = new Vector3(float.MinValue);
@@ -102,11 +102,8 @@ namespace SharedRevit.Geometry
             Vector3 boxCenterLocal = (min + max) * 0.5f; // center in PCA space
             Vector3 boxCenterWorld = Vector3.Transform(boxCenterLocal, transform);
             Vector3 offset = translation - boxCenterWorld;
-            Matrix4x4 correctedTranslation = Matrix4x4.CreateTranslation(offset);
-            Matrix4x4 correctedTransform =  transform * rotation;
-
-            Matrix4x4 invertedCorrectedTransform;
-            Matrix4x4.Invert(correctedTransform, out invertedCorrectedTransform);
+            Matrix4x4 correctedTranslation = Matrix4x4.CreateTranslation(translation - offset);
+            Matrix4x4 correctedTransform = rotation * correctedTranslation;
 
             return new Box(boxSize, correctedTransform);
         }

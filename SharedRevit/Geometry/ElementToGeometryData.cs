@@ -55,7 +55,7 @@ namespace SharedRevit.Geometry
             }
             else if (obj is Solid solid)
             {
-                foreach (Face face in solid.Faces)
+                foreach (Autodesk.Revit.DB.Face face in solid.Faces)
                 {
                     Autodesk.Revit.DB.Mesh faceMesh = face.Triangulate();
                     if (faceMesh != null && faceMesh.NumTriangles > 0)
