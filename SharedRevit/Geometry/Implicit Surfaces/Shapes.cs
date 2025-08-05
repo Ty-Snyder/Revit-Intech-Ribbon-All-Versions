@@ -204,29 +204,37 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
             return edges;
         }
 
+
         public List<Face> GetFaces()
         {
             Vector3 halfSize = Size * 0.5f;
 
-            Vector3[] normals = new Vector3[]
+            var faceDefs = new (Vector3 normal, Vector3 axisU, Vector3 axisV, Vector2 halfExtents)[]
             {
-                Vector3.UnitX, -Vector3.UnitX,
-                Vector3.UnitY, -Vector3.UnitY,
-                Vector3.UnitZ, -Vector3.UnitZ
+                ( Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector2(halfSize.Y, halfSize.Z)),
+                (-Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector2(halfSize.Y, halfSize.Z)),
+                ( Vector3.UnitY, Vector3.UnitX, Vector3.UnitZ, new Vector2(halfSize.X, halfSize.Z)),
+                (-Vector3.UnitY, Vector3.UnitX, Vector3.UnitZ, new Vector2(halfSize.X, halfSize.Z)),
+                ( Vector3.UnitZ, Vector3.UnitX, Vector3.UnitY, new Vector2(halfSize.X, halfSize.Y)),
+                (-Vector3.UnitZ, Vector3.UnitX, Vector3.UnitY, new Vector2(halfSize.X, halfSize.Y)),
             };
 
-            List<Face> faces = new List<Face>();
+            var faces = new List<Face>();
 
-            foreach (var normal in normals)
+            foreach (var (normal, axisU, axisV, halfExtents) in faceDefs)
             {
-                Vector3 localPoint = normal * halfSize;
-                Vector3 worldPoint = Vector3.Transform(localPoint, Transform);
+                Vector3 localCenter = normal * halfSize;
+                Vector3 worldCenter = Vector3.Transform(localCenter, Transform);
                 Vector3 worldNormal = Vector3.TransformNormal(normal, Transform);
-                faces.Add(new Face(worldNormal, worldPoint));
+                Vector3 worldAxisU = Vector3.TransformNormal(axisU, Transform);
+                Vector3 worldAxisV = Vector3.TransformNormal(axisV, Transform);
+
+                faces.Add(new Face(worldNormal, worldCenter, worldAxisU, worldAxisV, halfExtents));
             }
 
             return faces;
         }
+
         public bool ContainsPoint(Vector3 point)
         {
             Matrix4x4.Invert(Transform, out Matrix4x4 inverse);
@@ -263,18 +271,30 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
     {
         public Vector3 Normal { get; }
         public float D { get; }
+        public Vector3 Center { get; }
+        public Vector3 AxisU { get; }
+        public Vector3 AxisV { get; }
+        public Vector2 HalfExtents { get; }
 
-        public Face(Vector3 normal, Vector3 pointOnPlane)
+        public Face(Vector3 normal, Vector3 pointOnPlane, Vector3 axisU, Vector3 axisV, Vector2 halfExtents)
         {
             Normal = Vector3.Normalize(normal);
             D = -Vector3.Dot(Normal, pointOnPlane);
+            Center = pointOnPlane;
+            AxisU = Vector3.Normalize(axisU);
+            AxisV = Vector3.Normalize(axisV);
+            HalfExtents = halfExtents;
         }
 
         public bool IsPointInside(Vector3 point)
         {
-            return Vector3.Dot(Normal, point) + D <= 0;
+            Vector3 local = point - Center;
+            float u = Vector3.Dot(local, AxisU);
+            float v = Vector3.Dot(local, AxisV);
+            return Math.Abs(u) <= HalfExtents.X && Math.Abs(v) <= HalfExtents.Y;
         }
     }
+
 
     public class ShapeUtils
     {
@@ -353,11 +373,11 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
 
             return new Box(newSize, newTransform);
         }
-
-        private static bool IntersectSegmentWithFace(Vector3 a, Vector3 b, Face face, out Vector3 intersection)
+        public static bool IntersectSegmentWithFace(Vector3 a, Vector3 b, Face face, out Vector3 intersection)
         {
             Vector3 ab = b - a;
             float denom = Vector3.Dot(face.Normal, ab);
+
             if (Math.Abs(denom) < 1e-6f)
             {
                 intersection = default;
@@ -365,15 +385,18 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
             }
 
             float t = -(Vector3.Dot(face.Normal, a) + face.D) / denom;
-            if (t >= 0 && t <= 1)
+
+            if (t < 0 || t > 1)
             {
-                intersection = a + t * ab;
-                return true;
+                intersection = default;
+                return false;
             }
 
-            intersection = default;
-            return false;
+            intersection = a + t * ab;
+
+            return face.IsPointInside(intersection);
         }
+
 
         public static List<List<Vector3>> GetBoxFaces(Box box)
         {
@@ -389,7 +412,7 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
                 new Vector3(-half.X, -half.Y,  half.Z),
                 new Vector3( half.X, -half.Y,  half.Z),
                 new Vector3( half.X,  half.Y,  half.Z),
-                new Vector3(-half.X,  half.Y,  half.Z),
+                new Vector3(-half.X,  half.Y,  half.Z)
             };
 
             // Transform to world space

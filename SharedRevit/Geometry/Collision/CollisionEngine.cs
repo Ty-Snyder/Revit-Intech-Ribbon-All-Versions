@@ -49,9 +49,6 @@ namespace SharedRevit.Geometry.Collision
 
                             SimpleMesh intersectionMesh = intersectBox.ClipMeshToBox(a.mesh);
 
-                            string i = intersectBox.ToString();
-                            string a1 = shapeA.ToString();
-                            string a2 = shapeB.ToString();
                             if (intersectionMesh.Vertices.Count < 3)
                                 continue;
                             onCollision(new CollisionResult
