@@ -8,7 +8,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedRevit.Geometry.Implicit_Surfaces
+namespace SharedRevit.Geometry.Shapes
 {
     public interface IShape
     {
@@ -46,10 +46,14 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
             return outsideDistance + insideDistance;
         }
 
-        public SimpleMesh ClipMeshToBox(SimpleMesh inputMesh)
+
+        public (SimpleMesh ClippedMesh, List<Face> UsedFaces) ClipMeshToBox(SimpleMesh inputMesh)
         {
             SimpleMesh outputMesh = new SimpleMesh();
             Dictionary<int, int> vertexMap = new Dictionary<int, int>();
+            HashSet<Face> usedFaces = new HashSet<Face>();
+
+            List<Face> boxFaces = this.GetFaces();
 
             foreach (var line in inputMesh.Lines)
             {
@@ -59,70 +63,105 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
                 float dStart = (float)this.SignedDistance(start);
                 float dEnd = (float)this.SignedDistance(end);
 
-                // If both points are inside, keep the line
+                // Fast rejection: both points outside
+                if (dStart > 0 && dEnd > 0)
+                {
+                    List<Vector3> clipped = new List<Vector3>();
+
+                    foreach (var face in boxFaces)
+                    {
+                        if (TryIntersectFace(start, end, face, out Vector3 point))
+                        {
+                            clipped.Add(point);
+                            usedFaces.Add(face);
+                            if (clipped.Count == 2) break;
+                        }
+                    }
+
+                    if (clipped.Count == 2)
+                    {
+                        int i1 = outputMesh.Vertices.Count;
+                        outputMesh.Vertices.Add(clipped[0]);
+
+                        int i2 = outputMesh.Vertices.Count;
+                        outputMesh.Vertices.Add(clipped[1]);
+
+                        outputMesh.Lines.Add(new SimpleLine(i1, i2));
+                    }
+
+                    continue;
+                }
+
+                // Fully inside
                 if (dStart <= 0 && dEnd <= 0)
                 {
                     int newStart = GetOrAddVertex(outputMesh, vertexMap, line.StartIndex, start);
                     int newEnd = GetOrAddVertex(outputMesh, vertexMap, line.EndIndex, end);
                     outputMesh.Lines.Add(new SimpleLine(newStart, newEnd));
+                    continue;
                 }
-                else if (dStart * dEnd < 0)
+
+                // One point inside, one outside — clip
+                List<Vector3> clippedPoints = new List<Vector3>();
+
+                foreach (var face in boxFaces)
                 {
-                    // Line crosses the box surface: clip it
-                    float t = dStart / (dStart - dEnd);
-                    Vector3 intersection = Vector3.Lerp(start, end, t);
-
-                    int insideIndex = dStart < 0
-                        ? GetOrAddVertex(outputMesh, vertexMap, line.StartIndex, start)
-                        : GetOrAddVertex(outputMesh, vertexMap, line.EndIndex, end);
-
-                    int intersectionIndex = outputMesh.Vertices.Count;
-                    outputMesh.Vertices.Add(intersection);
-                    outputMesh.Lines.Add(new SimpleLine(insideIndex, intersectionIndex));
+                    if (TryIntersectFace(start, end, face, out Vector3 point))
+                    {
+                        clippedPoints.Add(point);
+                        usedFaces.Add(face);
+                        if (clippedPoints.Count == 2) break;
+                    }
                 }
-                else if (dStart <= 0 || dEnd <= 0)
+
+                if (clippedPoints.Count == 1)
                 {
-                    // One point is inside, one is on the surface
                     int insideIndex = dStart <= 0
                         ? GetOrAddVertex(outputMesh, vertexMap, line.StartIndex, start)
                         : GetOrAddVertex(outputMesh, vertexMap, line.EndIndex, end);
 
-                    int surfaceIndex = dStart > 0
-                        ? GetOrAddVertex(outputMesh, vertexMap, line.StartIndex, start)
-                        : GetOrAddVertex(outputMesh, vertexMap, line.EndIndex, end);
+                    int clippedIndex = outputMesh.Vertices.Count;
+                    outputMesh.Vertices.Add(clippedPoints[0]);
 
-                    outputMesh.Lines.Add(new SimpleLine(insideIndex, surfaceIndex));
+                    outputMesh.Lines.Add(new SimpleLine(insideIndex, clippedIndex));
                 }
-                else
+                else if (clippedPoints.Count == 2)
                 {
-                    // Both points are outside — check if line intersects box
-                    // Sample midpoint for a quick heuristic
-                    Vector3 mid = (start + end) * 0.5f;
-                    float dMid = (float)this.SignedDistance(mid);
+                    int i1 = outputMesh.Vertices.Count;
+                    outputMesh.Vertices.Add(clippedPoints[0]);
 
-                    if (dMid <= 0)
-                    {
-                        // Line passes through box — clip both ends
-                        float t1 = dStart / (dStart - dEnd);
-                        float t2 = dEnd / (dEnd - dStart);
+                    int i2 = outputMesh.Vertices.Count;
+                    outputMesh.Vertices.Add(clippedPoints[1]);
 
-                        Vector3 i1 = Vector3.Lerp(start, end, t1);
-                        Vector3 i2 = Vector3.Lerp(start, end, t2);
-
-                        int i1Index = outputMesh.Vertices.Count;
-                        outputMesh.Vertices.Add(i1);
-
-                        int i2Index = outputMesh.Vertices.Count;
-                        outputMesh.Vertices.Add(i2);
-
-                        outputMesh.Lines.Add(new SimpleLine(i1Index, i2Index));
-                    }
+                    outputMesh.Lines.Add(new SimpleLine(i1, i2));
                 }
             }
 
-            return outputMesh;
+            return (outputMesh, usedFaces.ToList());
         }
 
+        private bool TryIntersectFace(Vector3 start, Vector3 end, Face face, out Vector3 intersection)
+        {
+            Vector3 direction = end - start;
+            float denom = Vector3.Dot(face.Normal, direction);
+
+            if (Math.Abs(denom) < 1e-6f)
+            {
+                intersection = default;
+                return false; // Parallel
+            }
+
+            float t = -(Vector3.Dot(face.Normal, start) + face.D) / denom;
+
+            if (t < 0 || t > 1)
+            {
+                intersection = default;
+                return false; // Outside segment
+            }
+
+            intersection = start + t * direction;
+            return face.IsPointInside(intersection);
+        }
 
         private static int GetOrAddVertex(SimpleMesh mesh, Dictionary<int, int> map, int originalIndex, Vector3 vertex)
         {
@@ -208,6 +247,7 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
         public List<Face> GetFaces()
         {
             Vector3 halfSize = Size * 0.5f;
+            Vector3 boxCenter = Vector3.Transform(Vector3.Zero, Transform); // World-space center of the box
 
             var faceDefs = new (Vector3 normal, Vector3 axisU, Vector3 axisV, Vector2 halfExtents)[]
             {
@@ -221,19 +261,27 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
 
             var faces = new List<Face>();
 
-            foreach (var (normal, axisU, axisV, halfExtents) in faceDefs)
+            foreach (var (localNormal, axisU, axisV, halfExtents) in faceDefs)
             {
-                Vector3 localCenter = normal * halfSize;
+                Vector3 localCenter = localNormal * halfSize;
                 Vector3 worldCenter = Vector3.Transform(localCenter, Transform);
-                Vector3 worldNormal = Vector3.TransformNormal(normal, Transform);
+                Vector3 worldNormal = Vector3.TransformNormal(localNormal, Transform);
                 Vector3 worldAxisU = Vector3.TransformNormal(axisU, Transform);
                 Vector3 worldAxisV = Vector3.TransformNormal(axisV, Transform);
+
+                // Ensure normal points away from box center
+                Vector3 toFace = Vector3.Normalize(worldCenter - boxCenter);
+                if (Vector3.Dot(worldNormal, toFace) < 0)
+                {
+                    worldNormal = -worldNormal;
+                }
 
                 faces.Add(new Face(worldNormal, worldCenter, worldAxisU, worldAxisV, halfExtents));
             }
 
             return faces;
         }
+
 
         public bool ContainsPoint(Vector3 point)
         {
@@ -293,7 +341,35 @@ namespace SharedRevit.Geometry.Implicit_Surfaces
             float v = Vector3.Dot(local, AxisV);
             return Math.Abs(u) <= HalfExtents.X && Math.Abs(v) <= HalfExtents.Y;
         }
+
+        public override bool Equals(object obj)
+        {
+            if (!(obj is Face)) return false;
+            Face other = (Face)obj;
+
+            return Normal.Equals(other.Normal)
+                && D.Equals(other.D)
+                && AxisU.Equals(other.AxisU)
+                && AxisV.Equals(other.AxisV)
+                && HalfExtents.Equals(other.HalfExtents);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 23 + Normal.GetHashCode();
+                hash = hash * 23 + D.GetHashCode();
+                hash = hash * 23 + AxisU.GetHashCode();
+                hash = hash * 23 + AxisV.GetHashCode();
+                hash = hash * 23 + HalfExtents.GetHashCode();
+                return hash;
+            }
+        }
     }
+
+
 
 
     public class ShapeUtils

@@ -61,7 +61,7 @@ namespace SharedRevit.Forms.Settings
             }
             {
                 SaveFileSection saveFileSection = saveFileManager.GetSectionsByName("Sleeve Place", "Round Sleeve") ??
-                new SaveFileSection("Sleeve Place", "Round Sleeve", "Active\tName\tFamily\tFamily Type\tLength Parameter\t" +
+                new SaveFileSection("Sleeve Place", "Round Sleeve", "Active\tName\tFamily\tSingle Point Type\t Double Point Type\tLength Parameter\t" +
                     "Diameter Parameter\tLength Tolerance\tDiameter Tolerance\tLength Round\tDiameter Round");
                 RoundPanel.CellEdited += RoundPanel_CellEdited;
                 RoundPanel.RowAdded += RoundPanel_RowAdded;
@@ -71,7 +71,8 @@ namespace SharedRevit.Forms.Settings
                     { "Active", ColumnType.CheckBox },
                     { "Name", ColumnType.Text },
                     { "Family", ColumnType.ComboBox },
-                    { "Family Type", ColumnType.ComboBox },
+                    { "Single Point Type", ColumnType.ComboBox },
+                    { "Double Point Type", ColumnType.ComboBox },
                     { "Length Parameter", ColumnType.ComboBox },
                     { "Diameter Parameter", ColumnType.ComboBox },
                     { "Length Tolerance", ColumnType.Text },
@@ -93,7 +94,7 @@ namespace SharedRevit.Forms.Settings
 
             {
                 SaveFileSection saveFileSection = saveFileManager.GetSectionsByName("Sleeve Place", "Rect Sleeve") ??
-                new SaveFileSection("Sleeve Place", "Rect Sleeve", "Active\tName\tFamily\tFamily Type\tLength Parameter\t" +
+                new SaveFileSection("Sleeve Place", "Rect Sleeve", "Active\tName\tFamily\tSingle Point Type\t Double Point Type\tLength Parameter\t" +
                     "Width Parameter\tHeight Parameter\tLength Tolerance\tWidth Tolerance\tHeight Tolerance\tLength Round\tWidth Round\tHeight Round");
                 RectPanel.CellEdited += RectPanel_CellEdited;
                 RectPanel.RowAdded += RectPanel_RowAdded;
@@ -103,7 +104,8 @@ namespace SharedRevit.Forms.Settings
                     { "Active", ColumnType.CheckBox },
                     { "Name", ColumnType.Text },
                     { "Family", ColumnType.ComboBox },
-                    { "Family Type", ColumnType.ComboBox },
+                    { "Single Point Type", ColumnType.ComboBox },
+                    { "Double Point Type", ColumnType.ComboBox },
                     { "Length Parameter", ColumnType.ComboBox },
                     { "Width Parameter", ColumnType.ComboBox },
                     { "Height Parameter", ColumnType.ComboBox }
@@ -132,7 +134,8 @@ namespace SharedRevit.Forms.Settings
                 if (fam != null)
                 {
                     List<FamilySymbol> types = RevitUtils.GetFamilySymbols(fam);
-                    RectPanel.SetComboBoxItems("Family Type", rowEvent.RowIndex, types.Select(fs => fs.Name).ToList());
+                    RectPanel.SetComboBoxItems("Single Point Type", rowEvent.RowIndex, types.Select(fs => fs.Name).ToList());
+                    RectPanel.SetComboBoxItems("Double Point Type", rowEvent.RowIndex, types.Select(fs => fs.Name).ToList());
                     List<string> parameter = RevitUtils.GetParameters(fam);
                     RectPanel.SetComboBoxItems("Length Parameter", parameter);
                     RectPanel.SetComboBoxItems("Width Parameter", parameter);
@@ -162,7 +165,8 @@ namespace SharedRevit.Forms.Settings
                 List<FamilySymbol> types = RevitUtils.GetFamilySymbols(fam);
                 List<string> typeNames = types.Select(t => t.Name).ToList();
                 typeNames.Sort();
-                RectPanel.SetComboBoxItems("Family Type", cellEvent.RowIndex, typeNames);
+                RectPanel.SetComboBoxItems("Single Point Type", cellEvent.RowIndex, typeNames);
+                RectPanel.SetComboBoxItems("Double Point Type", cellEvent.RowIndex, typeNames);
 
                 List<string> names = new List<string>();
                 List<string> parameter = RevitUtils.GetParameters(fam);
@@ -182,7 +186,8 @@ namespace SharedRevit.Forms.Settings
                 if (fam != null)
                 {
                     List<FamilySymbol> types = RevitUtils.GetFamilySymbols(fam);
-                    RoundPanel.SetComboBoxItems("Family Type", rowEvent.RowIndex, types.Select(fs => fs.Name).ToList());
+                    RoundPanel.SetComboBoxItems("Single Point Type", rowEvent.RowIndex, types.Select(fs => fs.Name).ToList());
+                    RoundPanel.SetComboBoxItems("Double Point Type", rowEvent.RowIndex, types.Select(fs => fs.Name).ToList());
                     List<string> parameter = RevitUtils.GetParameters(fam);
                     RoundPanel.SetComboBoxItems("Length Parameter", parameter);
                     RoundPanel.SetComboBoxItems("Diameter Parameter", parameter);
@@ -211,7 +216,8 @@ namespace SharedRevit.Forms.Settings
                 List<FamilySymbol> types = RevitUtils.GetFamilySymbols(fam);
                 List<string> typeNames = types.Select(t => t.Name).ToList();
                 typeNames.Sort();
-                RoundPanel.SetComboBoxItems("Family Type", cellEvent.RowIndex, typeNames);
+                RoundPanel.SetComboBoxItems("Single Point Type", cellEvent.RowIndex, typeNames);
+                RoundPanel.SetComboBoxItems("Double Point Type", cellEvent.RowIndex, typeNames);
 
                 List<string> names = new List<string>();
                 List<string> parameter = RevitUtils.GetParameters(fam);

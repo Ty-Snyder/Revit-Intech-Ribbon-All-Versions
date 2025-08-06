@@ -1,7 +1,7 @@
 ﻿using Autodesk.Revit.DB;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Complex;
-using SharedRevit.Geometry.Implicit_Surfaces;
+using SharedRevit.Geometry.Shapes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
