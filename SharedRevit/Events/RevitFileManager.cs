@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using SharedCore.SaveFile;
+using SharedCore;
 
 namespace SharedRevit.SavedFile
 {
@@ -21,8 +22,7 @@ namespace SharedRevit.SavedFile
             this.projectName = doc.Title;
             this.format = format ?? throw new ArgumentNullException(nameof(format));
 
-            //string baseDir = Path.Combine(App.BasePath, "SaveFileManager");
-            string baseDir = "SaveFileManager";
+            string baseDir = Path.Combine(App.BasePath, "SaveFileManager");
             Directory.CreateDirectory(baseDir);
 
             tempPath = Path.Combine(baseDir, "temp.txt");

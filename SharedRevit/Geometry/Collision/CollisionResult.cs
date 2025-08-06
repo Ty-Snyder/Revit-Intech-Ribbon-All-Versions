@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.DB;
+﻿using SharedRevit.Geometry.Shapes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,12 +10,16 @@ namespace SharedRevit.Geometry.Collision
     public class CollisionResult
     {
 
-        public GeometryData A { get; set; }
-        public GeometryData B { get; set; }
-        public Solid Intersection
+        public MeshGeometryData A { get; set; }
+        public MeshGeometryData B { get; set; }
+        public SimpleMesh Intersection
         {
             get; set;
+        }
 
+        public List<Face> Faces 
+        {
+            get; set; 
         }
     }
 }

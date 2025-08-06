@@ -1,8 +1,10 @@
 ﻿using Autodesk.Revit.DB;
+using SharedRevit.Geometry.Shapes;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,23 +17,26 @@ namespace SharedRevit.Geometry.Collision
         {
             public delegate void CollisionHandler(CollisionResult result);
 
-
             public void Run(
-             IEnumerable<GeometryData> groupA,
-             IEnumerable<GeometryData> groupB,
-             double cellSize,
-             double overlap,
-             CollisionHandler onCollision)
+                IEnumerable<MeshGeometryData> groupA,
+                IEnumerable<MeshGeometryData> groupB,
+                double cellSize,
+                double overlap,
+                CollisionHandler onCollision)
             {
                 var partitions = new ConcurrentDictionary<(int x, int y, int z), Partition>();
                 var processedPairs = new ConcurrentDictionary<(ElementId, ElementId), byte>();
-                var results = new ConcurrentBag<CollisionResult>();
 
-                Parallel.ForEach(groupA.Concat(groupB), record =>
+                // Helper to get cell coordinates from Vector3
+                (int x, int y, int z) GetCellCoords(Vector3 point) =>
+                    ((int)(point.X / cellSize), (int)(point.Y / cellSize), (int)(point.Z / cellSize));
+
+                // Assign groupB elements to spatial partitions
+                foreach (var b in groupB)
                 {
-                    var inflated = InflateBoundingBox(record.BoundingBox, overlap);
-                    var min = GetCellIndex(inflated.Min, cellSize);
-                    var max = GetCellIndex(inflated.Max, cellSize);
+                    var bounds = b.BoundingSurface.GetBoundingBox(); // returns custom BoundingBox3D
+                    var min = GetCellCoords(bounds.Min);
+                    var max = GetCellCoords(bounds.Max);
 
                     for (int x = min.x; x <= max.x; x++)
                         for (int y = min.y; y <= max.y; y++)
@@ -40,97 +45,66 @@ namespace SharedRevit.Geometry.Collision
                                 var key = (x, y, z);
                                 var partition = partitions.GetOrAdd(key, _ => new Partition());
                                 lock (partition)
-                                    partition.Add(record);
+                                {
+                                    partition.GroupB.Add(b);
+                                }
                             }
-                });
+                }
 
-                Parallel.ForEach(partitions.Values, partition =>
+                // Collision phase (unchanged input loop)
+                Parallel.ForEach(groupA, a =>
                 {
-                    if (!partition.ShouldProcess()) return;
+                    var bounds = a.BoundingSurface.GetBoundingBox(); // returns custom BoundingBox3D
+                    var min = GetCellCoords(bounds.Min);
+                    var max = GetCellCoords(bounds.Max);
 
-                    foreach (var a in partition.GroupA)
+                    HashSet<MeshGeometryData> candidates = new();
+
+                    for (int x = min.x; x <= max.x; x++)
+                        for (int y = min.y; y <= max.y; y++)
+                            for (int z = min.z; z <= max.z; z++)
+                            {
+                                var key = (x, y, z);
+                                if (partitions.TryGetValue(key, out var partition))
+                                {
+                                    lock (partition)
+                                    {
+                                        foreach (var b in partition.GroupB)
+                                            candidates.Add(b);
+                                    }
+                                }
+                            }
+
+                    foreach (var b in candidates)
                     {
-                        foreach (var b in partition.GroupB)
+                        Box shapeA = (Box)a.BoundingSurface;
+                        Box shapeB = (Box)b.BoundingSurface;
+                        BoundingBox3D intersection = BoundingBox3D.Intersect(shapeA.GetBoundingBox(), shapeB.GetBoundingBox());
+                        if (!intersection.IsEmpty)
                         {
-                            if (!BoxesIntersect(a.BoundingBox, b.BoundingBox)) continue;
+                            var idA = a.SourceElementId;
+                            var idB = b.SourceElementId;
+                            if (idA > idB)
+                                (idA, idB) = (idB, idA);
+                            if (!processedPairs.TryAdd((idA, idB), 0))
+                                continue;
 
+                            Box intersectBox = ShapeUtils.IntersectBoxes(shapeB, shapeA);
+                            (SimpleMesh intersectionMesh, List<SharedRevit.Geometry.Shapes.Face> clippedFaces) = intersectBox.ClipMeshToBox(a.mesh);
 
-                            long id1 = GetElementIdValue(a.SourceElementId);
-                            long id2 = GetElementIdValue(b.SourceElementId);
+                            if (intersectionMesh.Vertices.Count < 3)
+                                continue;
 
-                            var key = id1 < id2
-                             ? (a.SourceElementId, b.SourceElementId)
-                             : (b.SourceElementId, a.SourceElementId);
-
-
-                            if (!processedPairs.TryAdd(key, 0)) continue;
-
-                            Solid intersection = null;
-                            try
+                            onCollision(new CollisionResult
                             {
-                                intersection = BooleanOperationsUtils.ExecuteBooleanOperation(
-                                a.Solid,
-                                b.Solid,
-                                BooleanOperationsType.Intersect);
-                            }
-                            catch
-                            {
-                            }
-
-                            if (intersection != null && intersection.Volume > 1e-6)
-                            {
-                                results.Add(new CollisionResult { A = a, B = b, Intersection = intersection });
-                            }
+                                A = a,
+                                B = b,
+                                Intersection = intersectionMesh,
+                                Faces = clippedFaces
+                            });
                         }
                     }
                 });
-
-                foreach (var result in results)
-                {
-                    onCollision(result);
-                }
-            }
-
-
-            public static long GetElementIdValue(ElementId id)
-            {
-                // Try to get the 'Value' property (Revit 2024+)
-                var valueProperty = typeof(ElementId).GetProperty("Value");
-                if (valueProperty != null)
-                {
-                    return (long)valueProperty.GetValue(id);
-                }
-
-                // Fallback for Revit 2023 and earlier
-                return id.IntegerValue;
-            }
-
-            bool BoxesIntersect(BoundingBoxXYZ a, BoundingBoxXYZ b)
-            {
-                return !(a.Max.X < b.Min.X || a.Min.X > b.Max.X ||
-                a.Max.Y < b.Min.Y || a.Min.Y > b.Max.Y ||
-                a.Max.Z < b.Min.Z || a.Min.Z > b.Max.Z);
-            }
-
-            public BoundingBoxXYZ InflateBoundingBox(BoundingBoxXYZ box, double overlap)
-            {
-                XYZ min = box.Min;
-                XYZ max = box.Max;
-
-                return new BoundingBoxXYZ
-                {
-                    Min = new XYZ(min.X - overlap, min.Y - overlap, min.Z - overlap),
-                    Max = new XYZ(max.X + overlap, max.Y + overlap, max.Z + overlap)
-                };
-            }
-
-            public (int x, int y, int z) GetCellIndex(XYZ point, double cellSize)
-            {
-                return (
-                    (int)Math.Floor(point.X / cellSize),
-                    (int)Math.Floor(point.Y / cellSize),
-                    (int)Math.Floor(point.Z / cellSize)
-                );
             }
         }
     }

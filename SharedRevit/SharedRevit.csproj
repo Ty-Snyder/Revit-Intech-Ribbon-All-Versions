@@ -85,7 +85,7 @@
 
 
 	<PropertyGroup>
-		  <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		  <EnableDefaultCompileItems>false</EnableDefaultCompileItems><PlatformTarget>x64</PlatformTarget>
 	</PropertyGroup>
 
 
@@ -173,10 +173,15 @@
 	  <Compile Include="Forms\SharedParameterAdd.Designer.cs" />
 	  <Compile Include="Forms\SheetCreateForm.cs" />
 	  <Compile Include="Forms\SheetCreateForm.Designer.cs" />
+	  <Compile Include="Geometry\BoundingShape.cs" />
 	  <Compile Include="Geometry\Collision\CollisionEngine.cs" />
 	  <Compile Include="Geometry\Collision\CollisionResult.cs" />
 	  <Compile Include="Geometry\ElementToGeometryData.cs" />
-	  <Compile Include="Geometry\GeometryData.cs" />
+	  <Compile Include="Geometry\Implicit Surfaces\Marching Squares.cs" />
+	  <Compile Include="Geometry\Implicit Surfaces\Shapes.cs" />
+	  <Compile Include="Geometry\MeshGeometryData.cs" />
+	  <Compile Include="Geometry\SolidGeometryData.cs" />
+	  <Compile Include="Geometry\mesh.cs" />
 	  <Compile Include="Geometry\RTree.cs" />
 	  <Compile Include="Ribbon\DefaultRibbonBuild.cs" />
 	  <Compile Include="Ribbon\RibbonBuild.cs" />
@@ -187,6 +192,7 @@
 
 	<ItemGroup>
 	  <PackageReference Include="EPPlus" Version="6.1.1" />
+	  <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
 	</ItemGroup>
 
 	  <ItemGroup>

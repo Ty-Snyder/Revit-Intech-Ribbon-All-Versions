@@ -1,22 +1,25 @@
 ﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.DirectContext3D;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+using SharedCore;
+using SharedCore.SaveFile;
 using SharedRevit.Geometry;
 using SharedRevit.Geometry.Collision;
+using SharedRevit.Geometry.Shapes;
 using SharedRevit.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using SharedCore;
-using SharedCore.SaveFile;
 
 namespace SharedRevit.Commands
 {
@@ -78,14 +81,16 @@ namespace SharedRevit.Commands
                          }
                      }
                  }
+                 if (elem is FabricationPart fab)
+                 {
+                     return true;
+                 }
+
                  return false;
              })
              .ToList();
 
-
-
-
-            List<GeometryData> mepGeometry = ElementToGeometryData.ConvertMEPToGeometryData(references, doc);
+            List<MeshGeometryData> mepGeometry = ElementToGeometryData.ConvertMEPToGeometryData(references, doc);
             if (mepGeometry.Count == 0)
             {
                 return Result.Failed;
@@ -102,7 +107,7 @@ namespace SharedRevit.Commands
 
             RevitLinkInstance structuralModel = linked.FirstOrDefault(l => l.Name == section.Rows[0][0]);
             List<Wall> walls = GetWallsFromLinkedModel(structuralModel);
-            List<GeometryData> wallGeometry = ConvertTransformedWallsToGeometryData(structuralModel, walls);
+            List<MeshGeometryData> wallGeometry = ConvertTransformedWallsToGeometryData(structuralModel, walls);
             if (wallGeometry.Count == 0)
             {
                 return Result.Failed;
@@ -160,65 +165,43 @@ namespace SharedRevit.Commands
             return walls;
         }
 
-        public List<GeometryData> ConvertTransformedWallsToGeometryData(RevitLinkInstance linkInstance, List<Wall> walls)
-        {
-            List<GeometryData> geometryDataList = new List<GeometryData>();
 
-            // Get the transform from the linked model to the host model
+        public List<MeshGeometryData> ConvertTransformedWallsToGeometryData(RevitLinkInstance linkInstance, List<Wall> walls)
+        {
+            var geometryDataList = new List<MeshGeometryData>();
             Transform linkTransform = linkInstance.GetTransform();
 
             foreach (Wall wall in walls)
             {
-                GeometryElement geomElement = wall.get_Geometry(new Options
-                {
-                    ComputeReferences = true,
-                    IncludeNonVisibleObjects = false,
-                    DetailLevel = ViewDetailLevel.Fine
-                });
+#if NET48
+                int value = wall.Id.IntegerValue;
+#endif
+               SimpleMesh meshData = RevitToSimpleMesh.Convert(wall, linkTransform);
 
-                if (geomElement == null) continue;
-
-                foreach (GeometryObject geomObj in geomElement)
+                if (meshData.Vertices.Count != 0)
                 {
-                    Solid solid = geomObj as Solid;
-                    if (solid != null && solid.Volume > 0)
+                    geometryDataList.Add(new MeshGeometryData
                     {
-                        // Apply the transform to the solid
-                        Solid transformedSolid = SolidUtils.CreateTransformed(solid, linkTransform);
-
-                        // Transform the bounding box
-                        BoundingBoxXYZ originalBox = wall.get_BoundingBox(null);
-                        BoundingBoxXYZ transformedBox = null;
-
-                        if (originalBox != null)
-                        {
-                            transformedBox = new BoundingBoxXYZ
-                            {
-                                Min = linkTransform.OfPoint(originalBox.Min),
-                                Max = linkTransform.OfPoint(originalBox.Max)
-                            };
-                        }
-
-                        geometryDataList.Add(new GeometryData
-                        {
-                            Solid = transformedSolid,
-                            BoundingBox = transformedBox,
-                            SourceElementId = wall.Id,
-                            Role = GeometryRole.B
-                        });
-                    }
+                        mesh = meshData,
+                        BoundingSurface = BoundingShape.SimpleMeshToIShape(meshData),
+                        SourceElementId = wall.Id,
+                        Role = GeometryRole.B
+                    }); ;
                 }
             }
-
             return geometryDataList;
         }
+        private class XYZComparer : IEqualityComparer<XYZ>
+        {
+            public bool Equals(XYZ a, XYZ b) => a.IsAlmostEqualTo(b);
+            public int GetHashCode(XYZ obj) => obj.GetHashCode();
+        }
+
 
         string[] activeSettings = null;
         public void placeSleeveAtCollision(CollisionResult collision, Document doc)
         {
-            Solid intersection = collision.Intersection;
-            if (intersection == null || intersection.Faces.Size == 0)
-                return;
+            SimpleMesh intersection = collision.Intersection;
 
             // Get linked model
             List<RevitLinkInstance> linked = RevitUtils.GetLinkedModels();
@@ -239,15 +222,23 @@ namespace SharedRevit.Commands
             Element wallElement = linkedDoc.GetElement(collision.B.SourceElementId);
             if (!(wallElement is Wall wall))
                 return;
-            XYZ wallNormal = GetWallNormalFromElement(wall);
-            if (wallNormal == null)
-                return;
 
-            GetBoundingMetrics(intersection, wallNormal, out double difHeight, out double difWidth, out double difLength, out XYZ center);
+            List<Geometry.Shapes.Face> faces = collision.Faces;
+            if(faces.Count == 0)
+            {
+                return;
+            }
+            Autodesk.Revit.DB.XYZ revitNormal = new Autodesk.Revit.DB.XYZ(
+                faces[0].Normal.X,
+                faces[0].Normal.Y,
+                faces[0].Normal.Z
+            );
+
+            GetBoundingMetrics(intersection, revitNormal, out double difHeight, out double difWidth, out double difLength, out XYZ center, out bool isRound);
 
             // Determine if round or rectangular
             Element pipeElement = doc.GetElement(collision.A.SourceElementId);
-            bool isRound = IsRound(pipeElement) && !forceRec;
+            isRound = isRound && !forceRec;
             double insulationThickness = GetInsulationThickness(doc, pipeElement);
 
 
@@ -264,7 +255,17 @@ namespace SharedRevit.Commands
             activeSettings = sec.lookUp(0, "True").FirstOrDefault() ?? sec.Rows[0];
 
             string familyName = activeSettings[2];
-            string symbolName = activeSettings[3];
+
+            string symbolName = faces.Count switch
+            {
+                0 => string.Empty,
+                1 => activeSettings[3],
+                _ => activeSettings[4]
+            };
+            if (string.IsNullOrEmpty(symbolName))
+            {
+                return;
+            }
 
             // Find the correct FamilySymbol
             FamilySymbol sleeveSymbol = new FilteredElementCollector(doc)
@@ -288,7 +289,7 @@ namespace SharedRevit.Commands
             if (level == null)
                 return;
 
-            if (SleeveExistsAt(center, doc, sleeveSymbol.Family.Name))
+            if (SleeveExistsAt(center, doc, sleeveSymbol.Family.Name, 0.2))
                 return;
 
             FamilyInstance sleeve = doc.Create.NewFamilyInstance(center, sleeveSymbol, level, StructuralType.NonStructural);
@@ -302,25 +303,23 @@ namespace SharedRevit.Commands
             Line axis1 = Line.CreateUnbound(origin, XYZ.BasisX);
             ElementTransformUtils.RotateElement(doc, sleeve.Id, axis1, ninetyDegrees);
 
-
-            // Step 2: Rotate around Z-axis to align with wall normal
             Transform sleeveTransform = (sleeve as FamilyInstance)?.GetTransform();
             XYZ sleeveX = sleeveTransform?.BasisX ?? XYZ.BasisX;
 
-            // Wall normal is already in XY plane
-            XYZ wallDirection = wallNormal.Normalize();
+            XYZ wallDirection = revitNormal;
+            XYZ sleeveOrigin = sleeveTransform?.Origin ?? XYZ.Zero;
 
-            // Adjust angle by ±90° (π/2) to account for rotated frame
-            double angle = sleeveX.AngleTo(wallDirection) - (Math.PI / 2);
+            // Rotate wallDirection by 90° counter-clockwise to get the desired facing direction
+            XYZ targetDirection = new XYZ(-wallDirection.Y, wallDirection.X, wallDirection.Z);
 
-            // Optional: Clamp angle to [-π, π] if needed
-            if (angle > Math.PI) angle -= 2 * Math.PI;
-            if (angle < -Math.PI) angle += 2 * Math.PI;
+            // Compute signed angle on XY plane
+            double angle = sleeveX.AngleOnPlaneTo(targetDirection, XYZ.BasisZ);
 
+            // Apply rotation if significant
             if (Math.Abs(angle) > 1e-6)
             {
-                Line axis2 = Line.CreateUnbound(origin, XYZ.BasisZ);
-                ElementTransformUtils.RotateElement(doc, sleeve.Id, axis2, angle);
+                Line axis = Line.CreateUnbound(sleeveOrigin, XYZ.BasisZ);
+                ElementTransformUtils.RotateElement(doc, sleeve.Id, axis, angle);
             }
 
 
@@ -333,13 +332,13 @@ namespace SharedRevit.Commands
 
             if (isRound)
             {
-                double roundTolerance = double.Parse(activeSettings[7]) / 12;
-                double roundIncrement = double.Parse(activeSettings[9]);
+                double roundTolerance = double.Parse(activeSettings[8]) / 12;
+                double roundIncrement = double.Parse(activeSettings[10]);
 
                 heightTolerance = roundTolerance;
                 widthTolerance = roundTolerance;
-                lengthTolerance = double.Parse(activeSettings[6]) / 12;
-                lengthRound = double.Parse(activeSettings[8]);
+                lengthTolerance = double.Parse(activeSettings[7]) / 12;
+                lengthRound = double.Parse(activeSettings[9]);
 
                 rawHeight = difHeight + 2 * insulationThickness + heightTolerance;
                 rawWidth = difWidth + 2 * insulationThickness + widthTolerance;
@@ -349,19 +348,19 @@ namespace SharedRevit.Commands
             }
             else
             {
-                heightTolerance = double.Parse(activeSettings[8]) / 12;
-                widthTolerance = double.Parse(activeSettings[9]) / 12;
-                lengthTolerance = double.Parse(activeSettings[7]) / 12;
-                lengthRound = double.Parse(activeSettings[10]);
+                heightTolerance = double.Parse(activeSettings[9]) / 12;
+                widthTolerance = double.Parse(activeSettings[10]) / 12;
+                lengthTolerance = double.Parse(activeSettings[8]) / 12;
+                lengthRound = double.Parse(activeSettings[11]);
 
                 rawHeight = difHeight + 2 * insulationThickness + heightTolerance;
                 rawWidth = difWidth + 2 * insulationThickness + widthTolerance;
 
-                height = RoundUpToNearestIncrement(rawHeight, double.Parse(activeSettings[12]));
-                width = RoundUpToNearestIncrement(rawWidth, double.Parse(activeSettings[11]));
+                height = RoundUpToNearestIncrement(rawHeight, double.Parse(activeSettings[13]));
+                width = RoundUpToNearestIncrement(rawWidth, double.Parse(activeSettings[12]));
             }
 
-            Parameter lengthParam = sleeve.LookupParameter(activeSettings[4]);
+            Parameter lengthParam = sleeve.LookupParameter(activeSettings[5]);
             if (lengthParam != null && !lengthParam.IsReadOnly)
             {
                 double thickness = RoundUpToNearestIncrement(difLength + lengthTolerance, lengthRound);
@@ -414,6 +413,12 @@ namespace SharedRevit.Commands
                 return doc.GetElement(levelId) as Level;
             }
 
+            if(element is FabricationPart fab)
+            {
+                ElementId id = fab.LevelId;
+                return doc.GetElement(id) as Level;
+            }
+
             return null;
         }
         public void MoveFamilyInstanceTo(FamilyInstance instance, XYZ targetPoint)
@@ -437,17 +442,9 @@ namespace SharedRevit.Commands
             if (pipe == null)
                 return 0;
 
-            ElementId pipeId = pipe.Id;
-
-            var insulation = new FilteredElementCollector(doc)
-            .OfClass(typeof(PipeInsulation))
-            .Cast<PipeInsulation>()
-            .FirstOrDefault(ins => ins.HostElementId == pipeId);
-
-            if (insulation != null)
+            Parameter thicknessParam = pipe.LookupParameter("Insulation Thickness");
+            if (thicknessParam != null)
             {
-
-                Parameter thicknessParam = insulation.LookupParameter("Insulation Thickness");
                 if (thicknessParam != null && thicknessParam.HasValue)
                     return thicknessParam.AsDouble(); // in feet
             }
@@ -476,20 +473,7 @@ namespace SharedRevit.Commands
             return valueInFeet;
         }
 
-
-        private XYZ GetWallNormalFromElement(Wall wall)
-        {
-            LocationCurve locCurve = wall.Location as LocationCurve;
-            if (locCurve != null)
-            {
-                Curve curve = locCurve.Curve;
-                XYZ wallDirection = (curve.GetEndPoint(1) - curve.GetEndPoint(0)).Normalize();
-                return wallDirection.CrossProduct(XYZ.BasisZ).Normalize(); // outward normal
-            }
-            return null;
-        }
-
-        private bool SleeveExistsAt(XYZ center, Document doc, string familyName, double tolerance = 0.1)
+        private bool SleeveExistsAt(XYZ center, Document doc, string familyName, double tolerance = 0.4)
         {
             // Create an Outline (not BoundingBoxXYZ)
             XYZ min = new XYZ(center.X - tolerance, center.Y - tolerance, center.Z - tolerance);
@@ -515,33 +499,14 @@ namespace SharedRevit.Commands
             return false;
         }
 
-        private bool IsRound(Element element)
-        {
-            if (element is Duct duct)
-            {
-                ConnectorSet connectors = duct.ConnectorManager.Connectors;
-                foreach (Connector connector in connectors)
-                {
-                    if (connector.Shape == ConnectorProfileType.Round)
-                        return true;
-                    if (connector.Shape == ConnectorProfileType.Rectangular)
-                        return false;
-                }
-            }
-
-            if (element is Pipe)
-                return true;
-
-            return false;
-        }
-
         private void GetBoundingMetrics(
-         Solid solid,
-         XYZ wallNormal,
-         out double zExtent,
-         out double sectionExtent,
-         out double normalExtent,
-         out XYZ centroid)
+            SimpleMesh mesh,
+            XYZ wallNormal,
+            out double zExtent,
+            out double sectionExtent,
+            out double normalExtent,
+            out XYZ center,
+            out bool round)
         {
             double minZ = double.MaxValue;
             double maxZ = double.MinValue;
@@ -552,58 +517,94 @@ namespace SharedRevit.Commands
             double minNormal = double.MaxValue;
             double maxNormal = double.MinValue;
 
+            double minX = double.MaxValue, maxX = double.MinValue;
+            double minY = double.MaxValue, maxY = double.MinValue;
+
             XYZ reference = XYZ.BasisZ;
             if (wallNormal.IsAlmostEqualTo(XYZ.BasisZ))
                 reference = XYZ.BasisX;
 
             XYZ sectionDirection = wallNormal.CrossProduct(reference).Normalize();
 
-            // For centroid calculation
-            XYZ sum = XYZ.Zero;
-            int count = 0;
-
-            foreach (Face face in solid.Faces)
+            foreach (Vector3 vertex in mesh.Vertices)
             {
-                Mesh mesh = face.Triangulate();
-                foreach (XYZ vertex in mesh.Vertices)
-                {
-                    double z = vertex.Z;
-                    double sectionCoord = vertex.DotProduct(sectionDirection);
-                    double normalCoord = vertex.DotProduct(wallNormal);
+                double x = vertex.X;
+                double y = vertex.Y;
+                double z = vertex.Z;
 
-                    if (z < minZ) minZ = z;
-                    if (z > maxZ) maxZ = z;
+                double sectionCoord = x * sectionDirection.X +
+                                      y * sectionDirection.Y +
+                                      z * sectionDirection.Z;
 
-                    if (sectionCoord < minSection) minSection = sectionCoord;
-                    if (sectionCoord > maxSection) maxSection = sectionCoord;
+                double normalCoord = x * wallNormal.X +
+                                     y * wallNormal.Y +
+                                     z * wallNormal.Z;
 
-                    if (normalCoord < minNormal) minNormal = normalCoord;
-                    if (normalCoord > maxNormal) maxNormal = normalCoord;
+                minZ = Math.Min(minZ, z);
+                maxZ = Math.Max(maxZ, z);
 
-                    sum += vertex;
-                    count++;
-                }
+                minX = Math.Min(minX, x);
+                maxX = Math.Max(maxX, x);
+
+                minY = Math.Min(minY, y);
+                maxY = Math.Max(maxY, y);
+
+                minSection = Math.Min(minSection, sectionCoord);
+                maxSection = Math.Max(maxSection, sectionCoord);
+
+                minNormal = Math.Min(minNormal, normalCoord);
+                maxNormal = Math.Max(maxNormal, normalCoord);
             }
 
             zExtent = maxZ - minZ;
             sectionExtent = maxSection - minSection;
             normalExtent = maxNormal - minNormal;
 
-            centroid = count > 0 ? sum.Divide(count) : XYZ.Zero;
+            center = new XYZ(
+                (minX + maxX) * 0.5,
+                (minY + maxY) * 0.5,
+                (minZ + maxZ) * 0.5
+            );
+
+            double maxRadSq = 0;
+
+            foreach (Vector3 v in mesh.Vertices)
+            {
+                // Vector from center to vertex
+                double dx = v.X - center.X;
+                double dy = v.Y - center.Y;
+                double dz = v.Z - center.Z;
+
+                Vector3 vec = new Vector3((float)dx, (float)dy, (float)dz);
+
+                // Project vec onto the plane perpendicular to wallNormal
+                Vector3 wallNormalVec = new Vector3((float)wallNormal.X, (float)wallNormal.Y, (float)wallNormal.Z);
+                float dot = Vector3.Dot(vec, wallNormalVec);
+                Vector3 projection = vec - wallNormalVec * dot;
+
+                double radSq = projection.LengthSquared();
+                maxRadSq = Math.Max(maxRadSq, radSq);
+            }
+
+            double radius = Math.Sqrt(maxRadSq);
+            double circularArea = Math.PI * radius * radius;
+            double projectedArea = sectionExtent * zExtent;
+
+            round = circularArea < projectedArea;
         }
 
         private void SetSleeveDimensions(FamilyInstance sleeve, bool isRound, double width, double height)
         {
             if (isRound)
             {
-                Parameter diameterParam = sleeve.LookupParameter(activeSettings[5]);
+                Parameter diameterParam = sleeve.LookupParameter(activeSettings[6]);
                 if (diameterParam != null && !diameterParam.IsReadOnly)
                     diameterParam.Set(Math.Max(width, height));
             }
             else
             {
-                Parameter widthParam = sleeve.LookupParameter(activeSettings[5]);
-                Parameter heightParam = sleeve.LookupParameter(activeSettings[6]);
+                Parameter widthParam = sleeve.LookupParameter(activeSettings[6]);
+                Parameter heightParam = sleeve.LookupParameter(activeSettings[7]);
 
                 if (widthParam != null && !widthParam.IsReadOnly)
                     widthParam.Set(width);
