@@ -1,4 +1,4 @@
-﻿namespace Intech.Windows.Forms
+﻿namespace SharedRevit.Forms.Settings
 {
     partial class FilteredCheckBox
     {
@@ -28,7 +28,6 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FilteredCheckBox));
             this.checkedListBox = new SharedRevit.Forms.CustomWindowsForms.FilterableCheckedListBox();
             this.SearchBox = new System.Windows.Forms.TextBox();
             this.NameTextBox = new System.Windows.Forms.TextBox();
@@ -36,9 +35,8 @@
             // 
             // checkedListBox
             // 
-            this.checkedListBox.AllItems = ((System.Collections.Generic.List<string>)(resources.GetObject("checkedListBox.AllItems")));
-            this.checkedListBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.checkedListBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.checkedListBox.CheckOnClick = true;
             this.checkedListBox.Filter = "";
@@ -51,7 +49,7 @@
             // 
             // SearchBox
             // 
-            this.SearchBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            this.SearchBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.SearchBox.Location = new System.Drawing.Point(142, 3);
             this.SearchBox.Name = "SearchBox";

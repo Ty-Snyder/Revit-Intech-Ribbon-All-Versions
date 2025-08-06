@@ -27,7 +27,7 @@ namespace SharedRevit.Forms.Settings
             List<string> p = RevitUtils.GetParameters(category);
             string filePath = Path.Combine(App.BasePath, "Settings.txt");
             SaveFileManager saveFileManager = new SaveFileManager(filePath, new TxtFormat());
-            SaveFileSection sec = saveFileManager.GetSectionsByName(category.Name).FirstOrDefault();
+            SaveFileSection sec = saveFileManager.GetSectionsByName("Number Settings", category.Name);
             SmartCheckBox.Init(category.Name, p);
             if(sec != null)
             {

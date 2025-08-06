@@ -4,7 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace Intech.Windows.Forms
+namespace SharedRevit.Forms.Settings
 {
     public partial class FilteredCheckBox : UserControl
     {

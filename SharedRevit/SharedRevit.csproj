@@ -123,16 +123,14 @@
 	  <Compile Include="Commands\Tagging Tools\Tag Button\Tagging.cs" />
 	  <Compile Include="Commands\Tagging Tools\Tag Button\TagTools.cs" />
 	  <Compile Include="Forms\custom form tools\CustomWindowsForms.cs" />
-	  <Compile Include="Forms\custom form tools\FilteredCheckBox.cs">
-	    <SubType>UserControl</SubType>
-	  </Compile>
-	  <Compile Include="Forms\custom form tools\FilteredCheckBox.Designer.cs" />
 	  <Compile Include="Forms\custom form tools\SectionLinkDataGrid.cs">
 	    <SubType>UserControl</SubType>
 	  </Compile>
 	  <Compile Include="Forms\custom form tools\SectionLinkDataGrid.Designer.cs" />
 	  <Compile Include="Events\SaveFileEventLink.cs" />
 	  <Compile Include="Events\RevitFileManager.cs" />
+	  <Compile Include="Forms\custom form tools\FilteredCheckBox.cs" />
+	  <Compile Include="Forms\custom form tools\FilteredCheckBox.Designer.cs" />
 	  <Compile Include="Forms\DependentViewForm.cs" />
 	  <Compile Include="Forms\DependentViewForm.Designer.cs" />
 	  <Compile Include="Forms\Excel\AddLink.cs" />

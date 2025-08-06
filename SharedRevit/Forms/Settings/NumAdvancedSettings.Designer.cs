@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.SmartCheckBox = new Intech.Windows.Forms.FilteredCheckBox();
+            this.SmartCheckBox = new FilteredCheckBox();
             this.close = new System.Windows.Forms.Button();
             this.save = new System.Windows.Forms.Button();
             this.SuspendLayout();
@@ -81,7 +81,7 @@
 
         #endregion
 
-        private Intech.Windows.Forms.FilteredCheckBox SmartCheckBox;
+        private FilteredCheckBox SmartCheckBox;
         private System.Windows.Forms.Button close;
         private System.Windows.Forms.Button save;
     }
