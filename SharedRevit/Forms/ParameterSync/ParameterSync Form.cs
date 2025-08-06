@@ -66,13 +66,14 @@ namespace SharedRevit.Forms
                 List<string[]> saveRows = section.Rows;
                 foreach(string[] row in saveRows)
                 {
-                    if(row.Length == 4)
+                    if(row.Length == 5)
                     {
                         int index = dataGridView1.Rows.Add();
                         dataGridView1.Rows[index].Cells["NameColumn"].Value = row[0];
-                        dataGridView1.Rows[index].Cells["Element"].Value = row[1];
-                        dataGridView1.Rows[index].Cells["baseParam"].Value = row[2];
-                        dataGridView1.Rows[index].Cells["Output"].Value = row[3];
+                        dataGridView1.Rows[index].Cells["elemCategory"].Value = row[1];
+                        dataGridView1.Rows[index].Cells["elemFamily"].Value = row[2];
+                        dataGridView1.Rows[index].Cells["baseParam"].Value = row[3];
+                        dataGridView1.Rows[index].Cells["Output"].Value = row[4];
                     }
                 }
             }
@@ -112,10 +113,11 @@ namespace SharedRevit.Forms
             foreach (int row in rows)
             {
 
-                string elementType = dataGridView1.Rows[row].Cells["Element"].Value.ToString();
+                string category = dataGridView1.Rows[row].Cells["elemCategory"].Value.ToString();
+                string family = dataGridView1.Rows[row].Cells["elemFamily"].Value.ToString();
                 string baseParam = dataGridView1.Rows[row].Cells["baseParam"].Value.ToString();
                 string outputParam = dataGridView1.Rows[row].Cells["Output"].Value.ToString();
-                ParameterSyncMenu.compute(baseParam, elementType, outputParam);
+                ParameterSyncMenu.compute(baseParam, category, family, outputParam);
             }
         }
 
@@ -124,10 +126,11 @@ namespace SharedRevit.Forms
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
                 if (row.IsNewRow) continue; // Skip the new row placeholder
-                string elementType = row.Cells["Element"].Value.ToString();
+                string category = row.Cells["elemCategory"].Value.ToString();
+                string family = row.Cells["elemFamily"].Value.ToString();
                 string baseParam = row.Cells["baseParam"].Value.ToString();
                 string outputParam = row.Cells["Output"].Value.ToString();
-                ParameterSyncMenu.compute(baseParam, elementType, outputParam);
+                ParameterSyncMenu.compute(baseParam, category, family, outputParam);
             }
         }
 
@@ -142,11 +145,12 @@ namespace SharedRevit.Forms
                     return;
                 }
                 string name = dataGridView1.Rows[cell.RowIndex].Cells["NameColumn"].Value.ToString();
-                string elementType = dataGridView1.Rows[cell.RowIndex].Cells["Element"].Value.ToString();
+                string category = dataGridView1.Rows[cell.RowIndex].Cells["elemCategory"].Value.ToString();
+                string family = dataGridView1.Rows[cell.RowIndex].Cells["elemFamily"].Value.ToString();
                 string baseParam = dataGridView1.Rows[cell.RowIndex].Cells["baseParam"].Value.ToString();
                 string outputParam = dataGridView1.Rows[cell.RowIndex].Cells["Output"].Value.ToString();
 
-                EditParameterSync editParameterSync = new EditParameterSync(name, elementType, baseParam, outputParam);
+                EditParameterSync editParameterSync = new EditParameterSync(name, category, family, baseParam, outputParam);
                 if (editParameterSync.ShowDialog() == DialogResult.OK)
                 {
                     // Save changes to the file

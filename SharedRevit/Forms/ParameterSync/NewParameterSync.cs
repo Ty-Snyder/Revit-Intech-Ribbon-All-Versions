@@ -23,7 +23,6 @@ namespace SharedRevit.Forms
         CategoryNameMap catagories = new CategoryNameMap();
         List<string> categoryNames = new List<string>();
         List<string> parameters = new List<string>();
-        List<string> units = new List<string>();
 
         private List<string> currentSuggestions = new List<string>();
         private int suggestionIndex = 0;
@@ -78,6 +77,23 @@ namespace SharedRevit.Forms
                     parameterComboBox.Text = string.Empty;
                 }
                 parameterComboBox.DataSource = parameters;
+
+                List<Family> fams = RevitUtils.GetFamiliesFromCategory(cat);
+                familyCombo.Items.Clear();
+                familyCombo.Items.Add(string.Empty); // Add empty item for no family
+                foreach (Family fam in fams)
+                {
+                    familyCombo.Items.Add(fam.Name);
+                }
+                //select the blank item
+                if (familyCombo.Items.Count > 0)
+                {
+                    familyCombo.SelectedIndex = 0;
+                }
+                else
+                {
+                    familyCombo.Text = string.Empty;
+                }
             }
         }
         private void category_SelectedTextUpdate(object sender, EventArgs e)
@@ -353,7 +369,7 @@ namespace SharedRevit.Forms
         private void saveAndLoad_Click(object sender, EventArgs e)
         {
             if (saveOperation())
-                ParameterSyncMenu.compute(smartParameterBox.Text.Trim(), categoryComboBox.Text, parameterComboBox.Text);
+                ParameterSyncMenu.compute(smartParameterBox.Text.Trim(), categoryComboBox.Text, familyCombo.Text.Trim(), parameterComboBox.Text);
             else
             {
                 MessageBox.Show("Failed to save. Make sure you are using latest code.");
@@ -370,6 +386,7 @@ namespace SharedRevit.Forms
 
             string Name = nameTextBox.Text.Trim();
             string category = categoryComboBox.SelectedItem?.ToString();
+            string family = familyCombo.Text.Trim();
             bool hasError = false;
 
             if (string.IsNullOrWhiteSpace(category))
@@ -407,7 +424,7 @@ namespace SharedRevit.Forms
 
             Document doc = ParameterSyncMenu.doc;
             SaveFileManager manager = new SaveFileManager(Path.Combine(Path.Combine(App.BasePath, "SaveFileManager"), "temp.txt"), new TxtFormat());
-            SaveFileSection section = new SaveFileSection(doc.Title, "ParameterSyncMenu", "Name\tCategory\tInput\tOutput");
+            SaveFileSection section = new SaveFileSection(doc.Title, "ParameterSyncMenu", "Name\tCategory\tFamily\tInput\tOutput");
             foreach (SaveFileSection sec in manager.GetSectionsByName(doc.Title))
             {
                 if (sec.SecondaryName == "ParameterSyncMenu")
@@ -415,7 +432,7 @@ namespace SharedRevit.Forms
                     section = sec;
                 }
             }
-            section.Rows.Add(new string[] { Name, category, parameter, outputParameter });
+            section.Rows.Add(new string[] { Name, category, family, parameter, outputParameter});
             manager.AddOrUpdateSection(section);
             smartParameterBox.Text = string.Empty;
             nameTextBox.Text = string.Empty;

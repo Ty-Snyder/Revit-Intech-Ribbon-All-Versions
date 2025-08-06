@@ -50,22 +50,45 @@ namespace SharedRevit.Commands
             return result.ToArray();
         }
 
-        public static void compute(string input, string category, string outParameter)
+
+        public static void compute(string input, string category, string family, string outParameter)
         {
             string[] inputParse = inputStringParse(input);
             List<Parameter> parameters = new List<Parameter>();
             CategoryNameMap categories = RevitUtils.GetAllCategories();
+
             if (!categories.Contains(category))
             {
                 throw new ArgumentException($"Category '{category}' does not exist in the document.");
             }
+
             Category cat = categories.get_Item(category);
+
+            List<Element> elems = new FilteredElementCollector(doc)
+                .OfCategoryId(cat.Id)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            // Filter by family if provided
+            if (!string.IsNullOrWhiteSpace(family))
+            {
+                elems = elems.Where(e =>
+                {
+                    FamilyInstance fi = e as FamilyInstance;
+                    return fi != null && fi.Symbol != null && fi.Symbol.Family != null && fi.Symbol.Family.Name == family;
+                }).ToList();
+            }
 
             Dictionary<Element, string> paramValues = new Dictionary<Element, string>();
 
-            List<Element> elems = new FilteredElementCollector(doc)
-                            .OfCategoryId(cat.Id)
-                            .WhereElementIsNotElementType().ToList();
+            foreach (Element elem in elems)
+            {
+                Parameter param = elem.LookupParameter(outParameter);
+                if (param != null && param.HasValue)
+                {
+                    paramValues[elem] = param.AsString();
+                }
+            }
             Transaction trans = new Transaction(doc, "Parameter Sync");
             trans.Start();
             try

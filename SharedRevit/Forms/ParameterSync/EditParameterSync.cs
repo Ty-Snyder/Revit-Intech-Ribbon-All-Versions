@@ -32,7 +32,7 @@ namespace SharedRevit.Forms
         private Label ghostLabel;
         RevitUtilsDefault RevitUtils = RevitUtilService.Get();
 
-        public EditParameterSync(string name, string category, string smartbox, string output)
+        public EditParameterSync(string name, string category, string family, string smartbox, string output)
         {
             InitializeComponent();
             CenterToParent();
@@ -375,7 +375,7 @@ namespace SharedRevit.Forms
 
         private void saveAndLoad_Click(object sender, EventArgs e)
         {
-            ParameterSyncMenu.compute(smartParameterBox.Text.Trim(), categoryComboBox.Text, parameterComboBox.Text);
+            ParameterSyncMenu.compute(smartParameterBox.Text.Trim(), FamilyCombo.Text.Trim(), categoryComboBox.Text, parameterComboBox.Text);
             this.DialogResult = DialogResult.OK;
             this.Close();
         }
@@ -385,7 +385,5 @@ namespace SharedRevit.Forms
             this.DialogResult = DialogResult.Cancel;
             this.Close();
         }
-
-
     }
 }

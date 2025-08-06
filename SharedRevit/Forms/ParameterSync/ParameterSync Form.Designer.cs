@@ -30,7 +30,8 @@
         {
             this.dataGridView1 = new System.Windows.Forms.DataGridView();
             this.NameColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Element = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.elemCategory = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.elemFamily = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.baseParam = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Output = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.reloadselect = new System.Windows.Forms.Button();
@@ -52,7 +53,8 @@
             this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.NameColumn,
-            this.Element,
+            this.elemCategory,
+            this.elemFamily,
             this.baseParam,
             this.Output});
             this.dataGridView1.Location = new System.Drawing.Point(12, 43);
@@ -65,11 +67,17 @@
             this.NameColumn.HeaderText = "Name";
             this.NameColumn.Name = "NameColumn";
             // 
-            // Element
+            // Category
             // 
-            this.Element.HeaderText = "ElementType";
-            this.Element.Name = "Element";
-            this.Element.Resizable = System.Windows.Forms.DataGridViewTriState.True;
+            this.elemCategory.HeaderText = "Category";
+            this.elemCategory.Name = "elemCategory";
+            this.elemCategory.Resizable = System.Windows.Forms.DataGridViewTriState.True;
+            // 
+            // elemFamily
+            // 
+            this.elemFamily.HeaderText = "Family";
+            this.elemFamily.Name = "elemFamily";
+            this.elemFamily.Resizable = System.Windows.Forms.DataGridViewTriState.True;
             // 
             // baseParam
             // 
@@ -174,7 +182,8 @@
         private System.Windows.Forms.Button addButton;
         private System.Windows.Forms.Button Remove;
         private System.Windows.Forms.DataGridViewTextBoxColumn NameColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Element;
+        private System.Windows.Forms.DataGridViewTextBoxColumn elemCategory;
+        private System.Windows.Forms.DataGridViewTextBoxColumn elemFamily;
         private System.Windows.Forms.DataGridViewTextBoxColumn baseParam;
         private System.Windows.Forms.DataGridViewTextBoxColumn Output;
         private System.Windows.Forms.Button edit;

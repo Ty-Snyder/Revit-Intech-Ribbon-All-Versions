@@ -208,6 +208,31 @@ namespace SharedRevit.Utils
             .ToList();
         }
 
+
+        public List<Family> GetFamiliesFromCategory(Category category)
+        {
+            if (category == null)
+            {
+                TaskDialog.Show("Error", "Category is null.");
+                return new List<Family>();
+            }
+
+            // Collect all FamilySymbols in the document
+            var symbols = new FilteredElementCollector(_doc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .Where(s => s.Category != null && s.Category.Id == category.Id);
+
+            // Extract unique families
+            var families = symbols
+                .Select(s => s.Family)
+                .Distinct()
+                .ToList();
+
+            return families;
+        }
+
+
         public List<FamilySymbol> GetFamilySymbols(Family family)
         {
             if (family == null) return new List<FamilySymbol>();

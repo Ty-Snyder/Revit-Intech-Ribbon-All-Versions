@@ -39,6 +39,8 @@
             this.Close = new System.Windows.Forms.Button();
             this.parameterComboBox = new System.Windows.Forms.ComboBox();
             this.saveAndLoad = new System.Windows.Forms.Button();
+            this.textBox5 = new System.Windows.Forms.TextBox();
+            this.familyCombo = new System.Windows.Forms.ComboBox();
             this.SuspendLayout();
             // 
             // categoryComboBox
@@ -87,9 +89,9 @@
             this.smartParameterBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.smartParameterBox.Location = new System.Drawing.Point(96, 39);
+            this.smartParameterBox.Location = new System.Drawing.Point(96, 71);
             this.smartParameterBox.Name = "smartParameterBox";
-            this.smartParameterBox.Size = new System.Drawing.Size(355, 54);
+            this.smartParameterBox.Size = new System.Drawing.Size(355, 60);
             this.smartParameterBox.TabIndex = 4;
             this.smartParameterBox.Text = "";
             // 
@@ -99,7 +101,7 @@
             this.textBox3.BackColor = System.Drawing.SystemColors.Menu;
             this.textBox3.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.textBox3.ForeColor = System.Drawing.SystemColors.WindowText;
-            this.textBox3.Location = new System.Drawing.Point(5, 60);
+            this.textBox3.Location = new System.Drawing.Point(5, 93);
             this.textBox3.Name = "textBox3";
             this.textBox3.Size = new System.Drawing.Size(74, 13);
             this.textBox3.TabIndex = 5;
@@ -111,7 +113,7 @@
             this.textBox4.BackColor = System.Drawing.SystemColors.Menu;
             this.textBox4.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.textBox4.ForeColor = System.Drawing.SystemColors.WindowText;
-            this.textBox4.Location = new System.Drawing.Point(5, 103);
+            this.textBox4.Location = new System.Drawing.Point(5, 141);
             this.textBox4.Name = "textBox4";
             this.textBox4.Size = new System.Drawing.Size(85, 13);
             this.textBox4.TabIndex = 7;
@@ -120,7 +122,7 @@
             // save
             // 
             this.save.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.save.Location = new System.Drawing.Point(4, 133);
+            this.save.Location = new System.Drawing.Point(4, 171);
             this.save.Name = "save";
             this.save.Size = new System.Drawing.Size(75, 23);
             this.save.TabIndex = 8;
@@ -132,7 +134,7 @@
             // 
             this.Close.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.Close.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.Close.Location = new System.Drawing.Point(378, 133);
+            this.Close.Location = new System.Drawing.Point(378, 171);
             this.Close.Name = "Close";
             this.Close.Size = new System.Drawing.Size(75, 23);
             this.Close.TabIndex = 9;
@@ -144,7 +146,7 @@
             this.parameterComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.parameterComboBox.FormattingEnabled = true;
-            this.parameterComboBox.Location = new System.Drawing.Point(96, 99);
+            this.parameterComboBox.Location = new System.Drawing.Point(96, 137);
             this.parameterComboBox.Name = "parameterComboBox";
             this.parameterComboBox.Size = new System.Drawing.Size(355, 21);
             this.parameterComboBox.TabIndex = 10;
@@ -153,7 +155,7 @@
             // saveAndLoad
             // 
             this.saveAndLoad.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.saveAndLoad.Location = new System.Drawing.Point(85, 133);
+            this.saveAndLoad.Location = new System.Drawing.Point(85, 171);
             this.saveAndLoad.Name = "saveAndLoad";
             this.saveAndLoad.Size = new System.Drawing.Size(102, 23);
             this.saveAndLoad.TabIndex = 11;
@@ -161,13 +163,36 @@
             this.saveAndLoad.UseVisualStyleBackColor = true;
             this.saveAndLoad.Click += new System.EventHandler(this.saveAndLoad_Click);
             // 
+            // textBox5
+            // 
+            this.textBox5.BackColor = System.Drawing.SystemColors.Menu;
+            this.textBox5.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.textBox5.ForeColor = System.Drawing.SystemColors.WindowText;
+            this.textBox5.Location = new System.Drawing.Point(5, 43);
+            this.textBox5.Name = "textBox5";
+            this.textBox5.Size = new System.Drawing.Size(85, 13);
+            this.textBox5.TabIndex = 13;
+            this.textBox5.Text = "Family (Optional)";
+            // 
+            // familyCombo
+            // 
+            this.familyCombo.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.familyCombo.FormattingEnabled = true;
+            this.familyCombo.Location = new System.Drawing.Point(96, 40);
+            this.familyCombo.Name = "familyCombo";
+            this.familyCombo.Size = new System.Drawing.Size(355, 21);
+            this.familyCombo.TabIndex = 12;
+            // 
             // NewParameterSync
             // 
             this.AcceptButton = this.save;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.Close;
-            this.ClientSize = new System.Drawing.Size(463, 166);
+            this.ClientSize = new System.Drawing.Size(463, 204);
+            this.Controls.Add(this.textBox5);
+            this.Controls.Add(this.familyCombo);
             this.Controls.Add(this.saveAndLoad);
             this.Controls.Add(this.parameterComboBox);
             this.Controls.Add(this.Close);
@@ -200,5 +225,7 @@
         private System.Windows.Forms.Button Close;
         private System.Windows.Forms.ComboBox parameterComboBox;
         private System.Windows.Forms.Button saveAndLoad;
+        private System.Windows.Forms.TextBox textBox5;
+        private System.Windows.Forms.ComboBox familyCombo;
     }
 }
