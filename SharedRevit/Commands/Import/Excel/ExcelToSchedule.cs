@@ -322,7 +322,7 @@ namespace SharedRevit.Commands
                     {
                         int p = i;
                         int copyColumnIndex = colIndex;
-                        while (p < nCol - 1 && string.IsNullOrEmpty(range.GetCellValue<string>(j, copyColumnIndex + 1)))
+                        while (p < nCol - 1 && string.IsNullOrEmpty(range.GetCellValue<string>(j, copyColumnIndex + 1)) && !IsCellPartOfMergedRegion(tableData, j, p))
                         {
                             if (worksheet.Column(copyColumnIndex + range.Start.Column).Hidden)
                             {
@@ -373,6 +373,23 @@ namespace SharedRevit.Commands
             return true;
         }
 
+
+
+        public static bool IsCellPartOfMergedRegion(TableSectionData tableData, int row, int column)
+        {
+            if (tableData == null)
+                throw new ArgumentNullException(nameof(tableData));
+
+            TableMergedCell mergedCell = tableData.GetMergedCell(row, column);
+
+            // A cell is part of a merged region if its bounds span more than one row or column
+            bool isMerged = mergedCell.Top < mergedCell.Bottom || mergedCell.Left < mergedCell.Right;
+
+            return isMerged;
+        }
+
+
+
         private static ViewSchedule createBlankSchedule(string name)
         {
             Document doc = linkUI.doc;
@@ -419,6 +436,7 @@ namespace SharedRevit.Commands
 
         private static void copyBorder(int tabRow, int tabCol, TableCellStyle scdB, ExcelWorksheet worksheet, int row, int column, TableSectionData tableData)
         {
+            TableMergedCell merge = tableData.GetMergedCell(tabRow, tabCol);
             Border excB = worksheet.Cells[row, column].Style.Border;
             ElementId top = getRevitBoarderIDFromExcel(excB.Top);
             int tRow = row;
@@ -439,12 +457,19 @@ namespace SharedRevit.Commands
             int bRow = row;
             if (bRow <= worksheet.Rows.EndRow && bottom == null)
             {
-                int hiddenRows = 0;
-                while (worksheet.Row(bRow + 1 + hiddenRows).Hidden)
+                int difMerge = merge.Bottom - tabRow;
+                for (int i = 0; i <= difMerge; i++)
                 {
-                    hiddenRows++;
+                    if (worksheet.Row(row + i).Hidden)
+                    {
+                        difMerge++;
+                    }
                 }
-                bottom = getRevitBoarderIDFromExcel(worksheet.Cells[bRow + 1 + hiddenRows, column].Style.Border.Top);
+                bottom = getRevitBoarderIDFromExcel(worksheet.Cells[row + difMerge, column].Style.Border.Bottom);
+                if (bottom == null)
+                {
+                    bottom = getRevitBoarderIDFromExcel(worksheet.Cells[row + difMerge + 1, column].Style.Border.Top);
+                }
             }
             if (bottom != null)
             {
@@ -453,7 +478,6 @@ namespace SharedRevit.Commands
             ElementId right = getRevitBoarderIDFromExcel(excB.Right);
             if (right == null)
             {
-                TableMergedCell merge = tableData.GetMergedCell(tabRow, tabCol);
                 int difMerge = merge.Right - tabCol;
 
                 for (int i = 0; i < difMerge; i++)
@@ -480,7 +504,6 @@ namespace SharedRevit.Commands
             ElementId left = getRevitBoarderIDFromExcel(excB.Left);
             if (left == null)
             {
-                TableMergedCell merge = tableData.GetMergedCell(tabRow, tabCol);
                 int difMerge = tabCol - merge.Left;
 
                 for (int i = 0; i <= difMerge; i++)
