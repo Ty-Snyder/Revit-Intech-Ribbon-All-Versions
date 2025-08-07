@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Revit_2026</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+	  <RevitYear>2026</RevitYear>
+	  <BaseOutputPath>..\..\..\..\..\..\ProgramData\Autodesk\Revit\Addins\2026\IntechRibbon\</BaseOutputPath>
+	  <PackageOutputPath>..\..\..\..\..\..\ProgramData\Autodesk\Revit\Addins\2026\IntechRibbon</PackageOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Revit_All_Main_Versions_API_x64" Version="2026.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Revit Intech Ribbon - All Versions\SharedRevit.csproj" />
+    <ProjectReference Include="..\SharedCore\SharedCore.csproj" />
+    <ProjectReference Include="..\SharedRevit\SharedRevit.csproj" />
+  </ItemGroup>
+
+</Project>
