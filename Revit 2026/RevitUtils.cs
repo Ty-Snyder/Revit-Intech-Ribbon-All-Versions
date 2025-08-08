@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using SharedRevit.Utils;
 
-namespace Revit_2026
+namespace Revit2026
 {
     internal class RevitUtils : RevitUtilsDefault
     {

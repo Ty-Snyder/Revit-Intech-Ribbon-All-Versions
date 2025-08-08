@@ -3,7 +3,7 @@ using SharedRevit.Events;
 using SharedRevit.Utils;
 using SharedCore;
 
-namespace Revit_2026
+namespace Revit2026
 {
     public class App : IExternalApplication
     {

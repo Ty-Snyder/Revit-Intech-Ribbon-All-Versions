@@ -2,12 +2,14 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+	<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	<TargetFramework>net8.0-windows</TargetFramework>
+	<LangVersion>10.0</LangVersion>
     <RootNamespace>Revit_2026</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
-	  <RevitYear>2026</RevitYear>
-	  <BaseOutputPath>..\..\..\..\..\..\ProgramData\Autodesk\Revit\Addins\2026\IntechRibbon\</BaseOutputPath>
-	  <PackageOutputPath>..\..\..\..\..\..\ProgramData\Autodesk\Revit\Addins\2026\IntechRibbon</PackageOutputPath>
+	<RevitYear>2026</RevitYear>
+	<BaseOutputPath>..\..\..\..\..\..\ProgramData\Autodesk\Revit\Addins\2026\IntechRibbon\</BaseOutputPath>
+	<PackageOutputPath>..\..\..\..\..\..\ProgramData\Autodesk\Revit\Addins\2026\IntechRibbon</PackageOutputPath>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

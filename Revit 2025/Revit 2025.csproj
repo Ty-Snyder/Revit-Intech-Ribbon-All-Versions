@@ -2,8 +2,11 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <RootNamespace>Revit_2025</RootNamespace>
+
+	<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	<TargetFramework>net8.0-windows</TargetFramework>
+	<LangVersion>10.0</LangVersion>
+	<RootNamespace>Revit_2025</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
 	  <RevitYear>2025</RevitYear>
 	  <BaseOutputPath>..\..\..\..\..\..\ProgramData\Autodesk\Revit\Addins\2025\IntechRibbon\</BaseOutputPath>
@@ -16,6 +19,7 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DebugType>portable</DebugType>
+	  
   </PropertyGroup>
 
   <ItemGroup>

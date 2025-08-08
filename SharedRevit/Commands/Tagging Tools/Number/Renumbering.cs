@@ -56,7 +56,7 @@ namespace SharedRevit.Commands
                 Element selectedElement = uidoc.Document.GetElement(selectedRef);
                 Category category = selectedElement.Category;
 
-                SaveFileSection matchParamsSec = saveFileManager.GetSectionsByName(category.Name).FirstOrDefault();
+                SaveFileSection matchParamsSec = saveFileManager.GetSectionsByName("Number Setting",category.Name);
                 string hash = string.Empty;
                 if (matchParamsSec != null )
                 {
