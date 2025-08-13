@@ -1,4 +1,5 @@
 ﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
@@ -950,6 +951,56 @@ namespace SharedRevit.Utils
                     return param.AsValueString();
             }
         }
+
+        public List<string> GetParametersFromSymbol(FamilySymbol symbol)
+        {
+            List<string> parameters = new List<string>();
+
+            // Try to get instance parameters from the family directly
+            Family fam = symbol.Family;
+            List<string> directParams = GetParameters(fam);
+
+            if (directParams != null && directParams.Count > 0)
+                return directParams;
+
+            // Fallback: place a temporary instance inside a transaction
+            FamilyInstance tempInstance = null;
+            Transaction trans = new Transaction(_doc, "Get Temp Instance Parameters");
+
+            try
+            {
+                if (symbol != null &&
+                    symbol.Category != null &&
+                    symbol.Category.CategoryType == CategoryType.Model &&
+                    symbol.Category.AllowsBoundParameters)
+                {
+                    trans.Start();
+
+                    if (!symbol.IsActive)
+                    {
+                        symbol.Activate();
+                        _doc.Regenerate();
+                    }
+
+                    Level level = _doc.ActiveView.GenLevel;
+                    XYZ location = new XYZ(-1000, -1000, 0);
+                    tempInstance = _doc.Create.NewFamilyInstance(location, symbol, level, StructuralType.NonStructural);
+
+                    parameters = GetParameters(fam);
+                    _doc.Delete(tempInstance.Id);
+                    trans.Commit();
+                }
+            }
+            catch
+            {
+                if (trans.HasStarted())
+                    trans.RollBack();
+            }
+
+            return parameters.ToList();
+        }
+
+
     }
 
     public struct MyFilterRuleWrapper

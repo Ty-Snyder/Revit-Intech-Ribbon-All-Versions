@@ -188,12 +188,17 @@ namespace SharedRevit.Forms.Settings
                     List<FamilySymbol> types = RevitUtils.GetFamilySymbols(fam);
                     RoundPanel.SetComboBoxItems("Single Point Type", rowEvent.RowIndex, types.Select(fs => fs.Name).ToList());
                     RoundPanel.SetComboBoxItems("Double Point Type", rowEvent.RowIndex, types.Select(fs => fs.Name).ToList());
-                    List<string> parameter = RevitUtils.GetParameters(fam);
-                    RoundPanel.SetComboBoxItems("Length Parameter", parameter);
-                    RoundPanel.SetComboBoxItems("Diameter Parameter", parameter);
+
+                    if (types.Count > 0)
+                    {
+                        List<string> parameters = RevitUtils.GetParametersFromSymbol(types[0]);
+                        RoundPanel.SetComboBoxItems("Length Parameter", parameters);
+                        RoundPanel.SetComboBoxItems("Diameter Parameter", parameters);
+                    }
                 }
             }
         }
+
 
         private void RoundPanel_CellEdited(object sender, EventArgs e)
         {

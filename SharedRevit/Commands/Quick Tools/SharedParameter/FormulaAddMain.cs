@@ -10,7 +10,7 @@ using System.Windows.Forms;
 using SharedRevit.Forms;
 using SharedRevit.Utils;
 
-namespace Intech.SharedParameter
+namespace SharedRevit.Commands
 {
     [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
     [Autodesk.Revit.Attributes.Regeneration(Autodesk.Revit.Attributes.RegenerationOption.Manual)]
