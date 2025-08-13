@@ -62,9 +62,10 @@ namespace SharedRevit.Forms
             string name = nameTextBox.Text.Trim();
             string selectedCategory = categoryCombo.SelectedItem as string;
             Category category = categoryNameMap.get_Item(selectedCategory);
-            if (string.IsNullOrEmpty(name))
+            if (string.IsNullOrEmpty(name) || category == null || filterRules.Count == 0)
             {
-                name = "New Filter";
+                MessageBox.Show("Please make sure you have set name, category and there is at least one filter applied");
+                return;
             }
             revitUtils.CreateParameterFilter(name, filterRules, new[] { category.Id }, false);
             this.Close();
@@ -80,6 +81,12 @@ namespace SharedRevit.Forms
             string name = nameTextBox.Text.Trim();
             string selectedCategory = categoryCombo.SelectedItem as string;
             Category category = categoryNameMap.get_Item(selectedCategory);
+
+            if (string.IsNullOrEmpty(name) || category == null || filterRules.Count == 0)
+            {
+                MessageBox.Show("Please make sure you have set name, category and there is at least one filter applied");
+                return;
+            }
 
             revitUtils.CreateParameterFilter(name, filterRules, new[] { category.Id }, true);
             this.Close();
@@ -122,14 +129,14 @@ namespace SharedRevit.Forms
 
                     case StorageType.Double:
                         if (double.TryParse(val, out double doubleVal))
-                            rule = CreateDoubleRule(provider, opp, doubleVal);
+                            rule = CreateDoubleRule(provider, opp, doubleVal/12);
                         else
                             throw new FormatException("Invalid double value.");
                         break;
 
                     case StorageType.Integer:
                         if (int.TryParse(val, out int intVal))
-                            rule = CreateIntegerRule(provider, opp, intVal);
+                            rule = CreateIntegerRule(provider, opp, intVal/12);
                         else
                             throw new FormatException("Invalid integer value.");
                         break;
@@ -211,9 +218,10 @@ namespace SharedRevit.Forms
             if (!string.IsNullOrEmpty(selectedParameter))
             {
                 Parameter p = selected.LookupParameter(selectedParameter);
-                string val = p.AsValueString();
+                string val = revitUtils.GetParameterValueAsString(p);
                 valueTextBox.Text = val ?? string.Empty;
 
+                opperationCombo.Items.Clear();
                 GetValidFilterRuleTypes(p).ForEach(ruleType =>
                 {
                     opperationCombo.Items.Add(ruleType);

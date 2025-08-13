@@ -926,6 +926,30 @@ namespace SharedRevit.Utils
 
             return filter;
         }
+
+        public string GetParameterValueAsString(Parameter param)
+        {
+            if (param == null || !param.HasValue)
+                return null;
+
+            switch (param.StorageType)
+            {
+                case StorageType.String:
+                    return param.AsString();
+
+                case StorageType.Integer:
+                    return (param.AsInteger() * 12).ToString();
+
+                case StorageType.Double:
+                    return (param.AsDouble() * 12).ToString();
+
+                case StorageType.ElementId:
+                    return param.AsElementId().IntegerValue.ToString();
+
+                default:
+                    return param.AsValueString();
+            }
+        }
     }
 
     public struct MyFilterRuleWrapper
