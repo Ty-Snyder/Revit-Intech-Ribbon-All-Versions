@@ -14,6 +14,7 @@ using System.Windows;
 using System.Xml.Linq;
 using SharedCore;
 using SharedCore.SaveFile;
+using SharedRevit.Commands.Tagging_Tools.Number;
 
 namespace SharedRevit.Commands
 {
@@ -26,6 +27,14 @@ namespace SharedRevit.Commands
         Utils.RevitUtilsDefault RevitUtils = Utils.RevitUtilService.Get();
         Dictionary<string, string> NumberMap = new Dictionary<string, string>();
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            KeyWatcher.StartWatching();
+            Result res = eventLoop(commandData, ref message, elements);
+            KeyWatcher.StopWatching();
+            return res;
+        }
+
+        public Result eventLoop(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIApplication app = commandData.Application;
             UIDocument uidoc = app.ActiveUIDocument;
@@ -43,7 +52,7 @@ namespace SharedRevit.Commands
                     throw new InvalidOperationException("No section found for 'Number Settings::Main' in the save file. Please go to Numbering settings and make sure to add a row and click Confirm.");
                 }
                 List<Category> categories = new List<Category>();
-                CategoryNameMap categoryMap = RevitUtils.GetAllCategories();
+                CategoryNameMap categoryMap = RevitUtils.GetCategoryMap();
                 foreach (string catNames in sec.GetColumn(0))
                 {
                     categories.Add(categoryMap.get_Item(catNames));
@@ -55,10 +64,10 @@ namespace SharedRevit.Commands
                 Reference selectedRef = uidoc.Selection.PickObject(ObjectType.Element, filter, "Select elements to number");
                 Element selectedElement = uidoc.Document.GetElement(selectedRef);
                 Category category = selectedElement.Category;
-
-                SaveFileSection matchParamsSec = saveFileManager.GetSectionsByName("Number Setting",category.Name);
+                sec = saveFileManager.GetSectionsByName("Number Settings", "Main");
+                SaveFileSection matchParamsSec = saveFileManager.GetSectionsByName("Number Setting", category.Name);
                 string hash = string.Empty;
-                if (matchParamsSec != null )
+                if (matchParamsSec != null)
                 {
                     List<string> match = matchParamsSec.GetColumn(0);
                     List<string> values = new List<string>();
@@ -101,7 +110,7 @@ namespace SharedRevit.Commands
                     if (!string.IsNullOrEmpty(hash))
                         NumberMap.Add(hash, paramVal);
                 }
-                
+
                 using (Transaction tran = new Transaction(doc))
                 {
                     tran.Start("Number Parameter");
@@ -111,15 +120,15 @@ namespace SharedRevit.Commands
                 saveFileManager.AddOrUpdateSection(sec);
                 var TagFam = tagtools.SaveInformation("Number");
                 tagtools.tag
-                    (
+                (
                     commandData,
                     TagFam.Category,
                     TagFam.Path,
                     TagFam.TagFamily,
                     TagFam.Leader,
                     selectedElement.Id
-                    );
-                Execute(commandData, ref message, elements);
+                );
+                eventLoop(commandData, ref message, elements);
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {

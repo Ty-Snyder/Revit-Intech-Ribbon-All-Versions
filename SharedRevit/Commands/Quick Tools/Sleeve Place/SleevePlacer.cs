@@ -335,9 +335,9 @@ namespace SharedRevit.Commands
                 double roundTolerance = double.Parse(activeSettings[8]) / 12;
                 double roundIncrement = double.Parse(activeSettings[10]);
 
+                lengthTolerance = double.Parse(activeSettings[7]) / 12;
                 heightTolerance = roundTolerance;
                 widthTolerance = roundTolerance;
-                lengthTolerance = double.Parse(activeSettings[7]) / 12;
                 lengthRound = double.Parse(activeSettings[9]);
 
                 rawHeight = difHeight + 2 * insulationThickness + heightTolerance;
@@ -349,8 +349,8 @@ namespace SharedRevit.Commands
             else
             {
                 heightTolerance = double.Parse(activeSettings[9]) / 12;
-                widthTolerance = double.Parse(activeSettings[10]) / 12;
                 lengthTolerance = double.Parse(activeSettings[8]) / 12;
+                widthTolerance = double.Parse(activeSettings[10]) / 12;
                 lengthRound = double.Parse(activeSettings[11]);
 
                 rawHeight = difHeight + 2 * insulationThickness + heightTolerance;
@@ -371,6 +371,7 @@ namespace SharedRevit.Commands
             Parameter PointNum0 = sleeve.LookupParameter("GTP_PointNumber_0");
             Parameter PointNum1 = sleeve.LookupParameter("GTP_PointNumber_1");
             Parameter service = pipeElement.LookupParameter("System Abbreviation");
+            Parameter fullService = pipeElement.LookupParameter("Fabrication Service");
             Parameter sleeveService = sleeve.LookupParameter("_IMC - SYSTEM ABBREVIATION");
             String sizeString = string.Empty;
             if (isRound)
@@ -385,12 +386,36 @@ namespace SharedRevit.Commands
             {
                 pointDescription.Set($"{sizeString} - Opening");
             }
+
             if (service != null && PointNum0 != null && !string.IsNullOrEmpty(sizeString))
             {
                 PointNum0.Set(sizeString + " " + service.AsValueString());
                 if (PointNum1 != null)
                 {
                     PointNum1.Set(sizeString + " " + service.AsValueString());
+                }
+            }
+            else if (pipeElement is FabricationPart fab && fullService != null) 
+            {
+                Dictionary<string, string> airTypeMap = new Dictionary<string, string>
+                {
+                    { "Supply Air", "SA" },
+                    { "Return Air", "RA" },
+                    { "Transfer Air", "TA" },
+                    { "Outside Air", "OA" },
+                    { "Exhaust Air", "EA" }
+                };
+                foreach (string s in airTypeMap.Keys)
+                {
+                    if (fullService.AsValueString().Contains(s))
+                    {
+                        string abriviation = airTypeMap[s];
+                        PointNum0.Set(sizeString + " " + abriviation);
+                        if (PointNum1 != null)
+                        {
+                            PointNum1.Set(sizeString + " " + abriviation);
+                        }
+                    }
                 }
             }
             if (sleeveService != null && service != null)
@@ -457,7 +482,7 @@ namespace SharedRevit.Commands
             if (incrementInInches != 0)
             {
                 double incrementInFeet = incrementInInches / 12.0;
-                double tolerance = 1e-6; // Arbitrarily small value in feet (~0.000012 inches)
+                double tolerance = 0.00032; // Arbitrarily small value in feet
 
                 double remainder = valueInFeet % incrementInFeet;
 

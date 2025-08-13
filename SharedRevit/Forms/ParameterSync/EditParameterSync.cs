@@ -36,7 +36,7 @@ namespace SharedRevit.Forms
         {
             InitializeComponent();
             CenterToParent();
-            catagories = RevitUtils.GetAllCategories();
+            catagories = RevitUtils.GetCategoryMap();
             // Populate the category combo box with category names
             foreach (Category cat in catagories)
             {

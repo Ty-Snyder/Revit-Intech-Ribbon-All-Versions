@@ -42,9 +42,11 @@ namespace SharedRevit.Ribbon
             QuickToolsStrip();
 
             ConnectButton();
+            DisconnectButton();
             RotateButton();
             RotateAroundButton();
             FindAndReplaceButton();
+            FilterButton();
             ParameterToolsPulldown();
             SleevePlaceButton();
             SleeveAtConnectButton();
@@ -118,6 +120,11 @@ namespace SharedRevit.Ribbon
             AddButton("Quick Tools", "Connect", "Connect", $"{BaseCodePath}.Commands.ConnectElementsCommand", "Connects fitting to pipe or duct to other duct element.");
         }
 
+        protected virtual void DisconnectButton()
+        {
+            AddButton("Quick Tools", "Disconnect", "Disconnect", $"{BaseCodePath}.Commands.Disconnect", "Closest connector to point clicked on part will disconnect.");
+        }
+
         protected virtual void RotateButton()
         {
             AddButton("Quick Tools", "Rotate", "Rotate", $"{BaseCodePath}.Commands.RotateConnector", "Selects a fitting then prompts angle.");
@@ -131,6 +138,11 @@ namespace SharedRevit.Ribbon
         protected virtual void FindAndReplaceButton()
         {
             AddButton("Quick Tools", "F&R", "Find and Replace", $"{BaseCodePath}.Commands.MainFindandReplace", "Collects selected items and lets you find and replace values in the parameters.");
+        }
+
+        protected virtual void FilterButton()
+        {
+            AddButton("Quick Tools", "Filter", "Create Filter", $"{BaseCodePath}.Commands.FilterTool", "Lets you select an element then make a filter based on it.");
         }
 
         protected virtual void SleevePlaceButton()

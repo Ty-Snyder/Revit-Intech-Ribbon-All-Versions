@@ -55,7 +55,7 @@ namespace SharedRevit.Commands
         {
             string[] inputParse = inputStringParse(input);
             List<Parameter> parameters = new List<Parameter>();
-            CategoryNameMap categories = RevitUtils.GetAllCategories();
+            CategoryNameMap categories = RevitUtils.GetCategoryMap();
 
             if (!categories.Contains(category))
             {

@@ -17,10 +17,25 @@ namespace SharedRevit.Utils
             _doc = document;
         }
 
-        public CategoryNameMap GetAllCategories()
+        public CategoryNameMap GetCategoryMap()
         {
             // Access all categories in the document
             CategoryNameMap categories = _doc.Settings.Categories;
+            return categories;
+        }
+
+        public List<Category> GetCategories()
+        {
+            // Get all categories in the document
+            CategoryNameMap categoryMap = GetCategoryMap();
+            List<Category> categories = new List<Category>();
+            foreach (Category category in categoryMap)
+            {
+                if (category != null && !category.IsReadOnly)
+                {
+                    categories.Add(category);
+                }
+            }
             return categories;
         }
 
@@ -863,5 +878,69 @@ namespace SharedRevit.Utils
 
             return linkedModels;
         }
+
+        public ElementId ConvertStringToElementId(string idString)
+        {
+#if NET8_0_OR_GREATER
+            if (long.TryParse(idString, out long longId))
+                return new ElementId(longId);
+#elif net48
+    if (int.TryParse(idString, out int intId))
+        return new ElementId(intId);
+#else
+            throw new NotSupportedException("Unsupported Framework.");
+#endif
+            throw new FormatException("Invalid ElementId string.");
+        }
+
+        public ParameterFilterElement CreateParameterFilter(
+            string filterName,
+            IList<MyFilterRuleWrapper> ruleWrappers,
+            IList<ElementId> categories,
+            bool visable)
+        {
+            // Step 1: Create parameter filters from rules
+            List<FilterRule> rules = ruleWrappers.Select(r => r.Rule).ToList();
+
+            // Step 2: Create ElementParameterFilter
+            ElementParameterFilter paramFilter = new ElementParameterFilter(rules);
+
+            // Step 3: Create ParameterFilterElement
+            ParameterFilterElement filter = ParameterFilterElement.Create(
+                _doc,
+                filterName,
+                categories,
+                paramFilter);
+
+            // Step 4: Apply to active view
+            View activeView = _doc.ActiveView;
+            activeView.AddFilter(filter.Id);
+            if (visable)
+            {
+                activeView.SetFilterVisibility(filter.Id, true);
+            }
+            else
+            {
+                activeView.SetFilterVisibility(filter.Id, false);
+            }
+
+            return filter;
+        }
+    }
+
+    public struct MyFilterRuleWrapper
+    {
+        public MyFilterRuleWrapper(FilterRule rule, string parameterName, string @operator, string value)
+        {
+            Rule = rule;
+            ParameterName = parameterName;
+            Operator = @operator;
+            Value = value;
+        }
+
+        public FilterRule Rule { get; set; }
+        public string ParameterName { get; set; }
+        public string Operator { get; set; }
+        public string Value { get; set; }
     }
 }

@@ -25,7 +25,7 @@ namespace SharedRevit.Forms
             InitializeComponent();
             CenterToParent();
             dataGridView1.Columns["NameColumn"].ReadOnly = true;
-            catagories = RevitUtils.GetAllCategories();
+            catagories = RevitUtils.GetCategoryMap();
             // Populate the combo box in the Element type row  on the dataGrid with category names
             DataGridViewComboBoxCell comboBoxCell = new DataGridViewComboBoxCell();
             foreach (Category category in catagories)

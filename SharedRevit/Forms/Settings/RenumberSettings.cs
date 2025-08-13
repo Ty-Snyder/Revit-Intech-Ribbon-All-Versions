@@ -63,7 +63,7 @@ namespace SharedRevit.Forms.Settings
             renumberMenu.CellEdited += RenumberMenu_CellEdited;
             renumberMenu.RowAdded += RenumberMenu_RowAdded;
 
-            categories = Utils.RevitUtilService.Get().GetAllCategories();
+            categories = Utils.RevitUtilService.Get().GetCategoryMap();
 
             string filePath = Path.Combine(App.BasePath, "Settings.txt");
             SaveFileManager saveFileManager = new SaveFileManager(filePath, new TxtFormat());

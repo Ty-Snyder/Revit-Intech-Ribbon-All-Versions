@@ -42,7 +42,7 @@ namespace SharedRevit.Forms.Settings
 
             var RevitUtils = Utils.RevitUtilService.Get();
 
-            categories = RevitUtils.GetAllCategories();
+            categories = RevitUtils.GetCategoryMap();
             List<string> catData = new List<string>();
             foreach (Category cat in categories)
             {

@@ -258,6 +258,7 @@ namespace SharedRevit.Commands
                     .WhereElementIsNotElementType()
                     .ToElements()
                     .Cast<ViewSheet>()
+                    .Where(s => s != newsheet)
                     .ToList();
 
                 newsheet.SheetNumber = renumbHelper(sheets, numb);

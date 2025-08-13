@@ -22,6 +22,7 @@ namespace SharedRevit.Commands
         {
             UIDocument uidoc = commandData.Application.ActiveUIDocument;
             Document doc = uidoc.Document;
+            View activeView = uidoc.ActiveView;
 
             try
             {
@@ -35,8 +36,8 @@ namespace SharedRevit.Commands
                 Element elem2 = doc.GetElement(ref2);
                 XYZ click2 = ref2.GlobalPoint;
 
-                Connector fromConnector = GetClosestConnector(elem1, click1);
-                Connector toConnector = GetClosestConnector(elem2, click2);
+                Connector fromConnector = GetClosestConnector(activeView, elem1, click1);
+                Connector toConnector = GetClosestConnector(activeView, elem2, click2);
 
                 if (fromConnector == null || toConnector == null)
                 {
@@ -132,17 +133,25 @@ namespace SharedRevit.Commands
         }
 
 
-        private Connector GetClosestConnector(Element element, XYZ pickedPoint)
+
+        private Connector GetClosestConnector(View view, Element element, XYZ pickedPoint)
         {
             ConnectorSet connectors = GetConnectors(element);
             if (connectors == null) return null;
+
+            XYZ viewDirection = GetViewDirection(view);
+            if (viewDirection == null) return null;
+
+            // Project picked point onto view plane
+            XYZ projectedPicked = ProjectOntoPlane(pickedPoint, viewDirection);
 
             Connector closest = null;
             double minDist = double.MaxValue;
 
             foreach (Connector conn in connectors)
             {
-                double dist = conn.Origin.DistanceTo(pickedPoint);
+                XYZ projectedConn = ProjectOntoPlane(conn.Origin, viewDirection);
+                double dist = (projectedConn - projectedPicked).GetLength();
                 if (dist < minDist)
                 {
                     minDist = dist;
@@ -152,6 +161,23 @@ namespace SharedRevit.Commands
 
             return closest;
         }
+
+        private XYZ GetViewDirection(View view)
+        {
+            if (view is View3D v3d && !v3d.IsPerspective)
+                return v3d.ViewDirection.Normalize();
+            else if (view is ViewSection || view is ViewPlan)
+                return XYZ.BasisZ; // Simplified assumption for 2D views
+            return null;
+        }
+
+        private XYZ ProjectOntoPlane(XYZ point, XYZ normal)
+        {
+            // Remove the component along the normal
+            double distance = point.DotProduct(normal);
+            return point - normal * distance;
+        }
+
         private ConnectorSet GetConnectors(Element element)
         {
             ConnectorSet connectors = null;

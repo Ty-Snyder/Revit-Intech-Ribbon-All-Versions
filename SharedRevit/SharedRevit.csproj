@@ -89,20 +89,14 @@
 	</PropertyGroup>
 
 
-
 	<ItemGroup>
-	  <EmbeddedResource Remove="Commands\Quick Tools\NewFolder\**" />
-	  <None Remove="Commands\Quick Tools\NewFolder\**" />
-	  <Page Remove="Commands\Quick Tools\NewFolder\**" />
-	</ItemGroup>
-
-
-	<ItemGroup>
+	  <Compile Include="Commands\Quick Tools\Disconnect.cs" />
 	  <Compile Include="Commands\Export\BOMExport.cs" />
 	  <Compile Include="Commands\Export\TigerStop.cs" />
 	  <Compile Include="Commands\Import\Excel\ExcelToSchedule.cs" />
 	  <Compile Include="Commands\Import\Excel\MainLink.cs" />
 	  <Compile Include="Commands\Quick Tools\Connect.cs" />
+	  <Compile Include="Commands\Quick Tools\FilterTool.cs" />
 	  <Compile Include="Commands\Quick Tools\MainF&amp;R.cs" />
 	  <Compile Include="Commands\Quick Tools\MainParameterSync.cs" />
 	  <Compile Include="Commands\Quick Tools\RotateConnector.cs" />
@@ -119,6 +113,7 @@
 	  <Compile Include="Commands\Sheet Tools\Title Block Select.cs" />
 	  <Compile Include="Commands\Tagging Tools\Number\NumberRun.cs" />
 	  <Compile Include="Commands\Tagging Tools\Number\Renumbering.cs" />
+	  <Compile Include="Commands\Tagging Tools\Number\SettingBackgroundThread.cs" />
 	  <Compile Include="Commands\Tagging Tools\Number\SettingsMain.cs" />
 	  <Compile Include="Commands\Tagging Tools\Tag Button\Tagging.cs" />
 	  <Compile Include="Commands\Tagging Tools\Tag Button\TagTools.cs" />
@@ -141,6 +136,8 @@
 	  <Compile Include="Forms\Excel\ExcelLink.Designer.cs" />
 	  <Compile Include="Forms\Excel\linkSettings.cs" />
 	  <Compile Include="Forms\Excel\linkSettings.Designer.cs" />
+	  <Compile Include="Forms\FilterCreateForm.cs" />
+	  <Compile Include="Forms\FilterCreateForm.Designer.cs" />
 	  <Compile Include="Forms\FindAndReplaceUI.cs" />
 	  <Compile Include="Forms\FindAndReplaceUI.Designer.cs" />
 	  <Compile Include="Forms\FormulaAdd.cs" />
